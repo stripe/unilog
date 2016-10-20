@@ -14,9 +14,14 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/DataDog/datadog-go/statsd"
+
 	"golang.org/x/crypto/ssh/terminal"
 	flag "launchpad.net/gnuflag"
 )
+
+// Send all metrics to the local veneur
+const StatsdAddress = "127.0.0.1:8200"
 
 // Unilog represents a unilog process. unilog is intended to be used
 // as a standalone application, but is exported as a package to allow
@@ -112,6 +117,8 @@ const (
 	DefaultBuffer = 1 << 12
 )
 
+var stats *statsd.Client
+
 func readlines(in io.Reader, bufsize int, shutdown chan struct{}) (<-chan string, <-chan error) {
 	linec := make(chan string, bufsize)
 	errc := make(chan error, 1)
@@ -126,7 +133,11 @@ func readlines(in io.Reader, bufsize int, shutdown chan struct{}) (<-chan string
 		for err == nil {
 			s, err = r.ReadString('\n')
 			if s != "" {
-				linec <- strings.TrimRight(s, "\n")
+				s = strings.TrimRight(s, "\n")
+				linec <- s
+				if stats != nil {
+					stats.Gauge("unilog.bytes", float64(len(s)), nil, 1.0)
+				}
 			}
 		}
 
@@ -288,6 +299,25 @@ func (u *Unilog) Main() {
 	u.reopen()
 
 	u.lines, u.errs = readlines(os.Stdin, u.BufferLines, u.shutdown)
+
+	hostname, err := os.Hostname()
+	if err != nil {
+		// if our logger can't even get the hostname
+		// something is seriously wrong and
+		// there's not really much we can do
+		os.Exit(2)
+	}
+
+	hostType, err := ParseHostname(hostname)
+	if err != nil {
+		hostType = "unparseable"
+	}
+
+	fileName := u.target
+
+	stats, _ = statsd.New(StatsdAddress)
+
+	stats.Tags = append(stats.Tags, fmt.Sprintf("FileName:%s", fileName), fmt.Sprintf("HostType:%s", hostType))
 
 	u.run()
 }
