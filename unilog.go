@@ -23,6 +23,9 @@ import (
 // Send all metrics to the local veneur
 const StatsdAddress = "127.0.0.1:8200"
 
+// hold the argument passed in with "-statstags"
+var statstags string
+
 // Unilog represents a unilog process. unilog is intended to be used
 // as a standalone application, but is exported as a package to allow
 // users to perform compile-time configuration to simplify deployment.
@@ -88,6 +91,7 @@ func (u *Unilog) addFlags() {
 	boolFlag(&u.Verbose, "verbose", "v", false, "Echo lines to stdout")
 	flag.StringVar(&u.MailFrom, "mailfrom", u.MailFrom, "Address to send error emails from")
 	flag.StringVar(&u.MailTo, "mailto", u.MailTo, "Address to send error emails to")
+	stringFlag(&statstags, "statstags", "s", "", `(optional) tags to include with all statsd metrics (e.g. "foo:bar,baz:quz")`)
 }
 
 var emailTemplate = template.Must(template.New("email").Parse(`From: {{.From}}
@@ -136,7 +140,7 @@ func readlines(in io.Reader, bufsize int, shutdown chan struct{}) (<-chan string
 				s = strings.TrimRight(s, "\n")
 				linec <- s
 				if stats != nil {
-					stats.Gauge("unilog.bytes", float64(len(s)), nil, 1.0)
+					stats.Count("unilog.bytes", int64(len(s)), nil, .1)
 				}
 			}
 		}
@@ -300,24 +304,12 @@ func (u *Unilog) Main() {
 
 	u.lines, u.errs = readlines(os.Stdin, u.BufferLines, u.shutdown)
 
-	hostname, err := os.Hostname()
-	if err != nil {
-		// if our logger can't even get the hostname
-		// something is seriously wrong and
-		// there's not really much we can do
-		os.Exit(2)
-	}
-
-	hostType, err := ParseHostname(hostname)
-	if err != nil {
-		hostType = "unparseable"
-	}
-
 	fileName := u.target
 
 	stats, _ = statsd.New(StatsdAddress)
 
-	stats.Tags = append(stats.Tags, fmt.Sprintf("FileName:%s", fileName), fmt.Sprintf("HostType:%s", hostType))
+	stats.Tags = append(stats.Tags, fmt.Sprintf("FileName:%s", fileName))
+	stats.Tags = append(stats.Tags, strings.Split(statstags, ",")...)
 
 	u.run()
 }
