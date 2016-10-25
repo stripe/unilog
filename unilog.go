@@ -14,9 +14,17 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/DataDog/datadog-go/statsd"
+
 	"golang.org/x/crypto/ssh/terminal"
 	flag "launchpad.net/gnuflag"
 )
+
+// Send all metrics to the local veneur
+const StatsdAddress = "127.0.0.1:8200"
+
+// hold the argument passed in with "-statstags"
+var statstags string
 
 // Unilog represents a unilog process. unilog is intended to be used
 // as a standalone application, but is exported as a package to allow
@@ -83,6 +91,7 @@ func (u *Unilog) addFlags() {
 	boolFlag(&u.Verbose, "verbose", "v", false, "Echo lines to stdout")
 	flag.StringVar(&u.MailFrom, "mailfrom", u.MailFrom, "Address to send error emails from")
 	flag.StringVar(&u.MailTo, "mailto", u.MailTo, "Address to send error emails to")
+	stringFlag(&statstags, "statstags", "s", "", `(optional) tags to include with all statsd metrics (e.g. "foo:bar,baz:quz")`)
 }
 
 var emailTemplate = template.Must(template.New("email").Parse(`From: {{.From}}
@@ -112,6 +121,8 @@ const (
 	DefaultBuffer = 1 << 12
 )
 
+var stats *statsd.Client
+
 func readlines(in io.Reader, bufsize int, shutdown chan struct{}) (<-chan string, <-chan error) {
 	linec := make(chan string, bufsize)
 	errc := make(chan error, 1)
@@ -126,7 +137,11 @@ func readlines(in io.Reader, bufsize int, shutdown chan struct{}) (<-chan string
 		for err == nil {
 			s, err = r.ReadString('\n')
 			if s != "" {
-				linec <- strings.TrimRight(s, "\n")
+				s = strings.TrimRight(s, "\n")
+				linec <- s
+				if stats != nil {
+					stats.Count("unilog.bytes", int64(len(s)), nil, .1)
+				}
 			}
 		}
 
@@ -288,6 +303,13 @@ func (u *Unilog) Main() {
 	u.reopen()
 
 	u.lines, u.errs = readlines(os.Stdin, u.BufferLines, u.shutdown)
+
+	fileName := u.target
+
+	stats, _ = statsd.New(StatsdAddress)
+
+	stats.Tags = append(stats.Tags, fmt.Sprintf("FileName:%s", fileName))
+	stats.Tags = append(stats.Tags, strings.Split(statstags, ",")...)
 
 	u.run()
 }
