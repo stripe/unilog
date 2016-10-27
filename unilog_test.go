@@ -48,3 +48,24 @@ func TestReadlinesWithLongLines(t *testing.T) {
 		t.Error("Did not reach EOF")
 	}
 }
+
+// Test that the shutdown command is handled properly
+// if the last byte read was not a newline
+func TestUnilogShutdown(t *testing.T) {
+	in := strings.NewReader("foobar")
+	shutdownChan := make(chan struct{})
+	ur := NewUnilogReader(in, shutdownChan).(*UnilogReader)
+
+	ur.shuttingDown = true
+	ur.nl = false
+
+	b := make([]byte, 10)
+
+	n, err := ur.Read(b)
+	if err == nil {
+		t.Errorf("Expected error but found none. Read %d bytes", n)
+	}
+	if n != 1 {
+		t.Fatalf("Expected to read 1 byte, but read %d bytes", n)
+	}
+}

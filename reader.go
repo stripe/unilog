@@ -1,6 +1,7 @@
 package unilog
 
 import (
+	"errors"
 	"io"
 )
 
@@ -40,5 +41,14 @@ func (u *UnilogReader) Read(buf []byte) (int, error) {
 	if n > 0 {
 		u.nl = buf[n-1] == '\n'
 	}
+
+	// We need to ensure that we always return a non-nil
+	// error if u.shuttingDown is set.
+	// This error doesn't actually need to be handled, but it
+	// is technically distinct from io.EOF
+	if u.shuttingDown && e == nil {
+		e = errors.New("shutdown signal received but no newline read")
+	}
+
 	return n, e
 }
