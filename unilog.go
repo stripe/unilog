@@ -26,6 +26,10 @@ const StatsdAddress = "127.0.0.1:8200"
 // hold the argument passed in with "-statstags"
 var statstags string
 
+// A filter to be applied to log lines prior to prefixing them
+// with a timestamp and logging them.
+type Filter func(string) string
+
 // Unilog represents a unilog process. unilog is intended to be used
 // as a standalone application, but is exported as a package to allow
 // users to perform compile-time configuration to simplify deployment.
@@ -37,9 +41,11 @@ type Unilog struct {
 	// either MailTo or MailFrom is unset, unilog will not
 	// generate email.
 	MailFrom string
-	// A filter to be applied to log lines prior to prefixing them
-	// with a timestamp and logging them.
-	Filter func(string) string
+
+	// A series of filters which will be applied to each log line
+	// in order
+	Filters []Filter
+
 	// The version that unilog will report on the command-line and
 	// in error emails. Defaults to the toplevel Version constant.
 	Version string
@@ -174,8 +180,10 @@ func (u *Unilog) reopen() {
 }
 
 func (u *Unilog) format(line string) string {
-	if u.Filter != nil {
-		line = u.Filter(line)
+	for _, filter := range u.Filters {
+		if filter != nil {
+			line = filter(line)
+		}
 	}
 	return fmt.Sprintf("[%s] %s\n", time.Now().Format("2006-01-02 15:04:05.000000"), line)
 }
