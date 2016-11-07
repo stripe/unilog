@@ -51,13 +51,23 @@ func TestReadlinesWithLongLines(t *testing.T) {
 
 func TestFilterFunction(t *testing.T) {
 	var input = shakespeare[0]
-	const expected = "To bee, or not to bee, that is the question-\n"
+	const expected = "To bee, or not to bee, that ain't the question-\n"
 
 	u := &Unilog{}
-	var sampleFilter = func(s string) string {
+
+	// double the first two instances of the character "e"
+	var doubleEFilter = func(s string) string {
 		return strings.Replace(s, "e", "ee", 2)
 	}
-	u.Filter = sampleFilter
+
+	var isToAintFilter = func(s string) string {
+		return strings.Replace(s, "is", "ain't", -1)
+	}
+
+	u.Filters = []Filter{
+		Filter(doubleEFilter),
+		Filter(isToAintFilter),
+	}
 
 	result := u.format(input)
 
@@ -72,5 +82,4 @@ func TestFilterFunction(t *testing.T) {
 	if result != expected {
 		t.Errorf("expected %q, found %q", expected, result)
 	}
-
 }
