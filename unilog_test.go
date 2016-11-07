@@ -48,3 +48,29 @@ func TestReadlinesWithLongLines(t *testing.T) {
 		t.Error("Did not reach EOF")
 	}
 }
+
+func TestFilterFunction(t *testing.T) {
+	var input = shakespeare[0]
+	const expected = "To bee, or not to bee, that is the question-\n"
+
+	u := &Unilog{}
+	var sampleFilter = func(s string) string {
+		return strings.Replace(s, "e", "ee", 2)
+	}
+	u.Filter = sampleFilter
+
+	result := u.format(input)
+
+	i := strings.Index(result, "]")
+	if i == -1 {
+		t.Errorf("Expected timestamp but found none")
+	}
+
+	// Remove the entire timestamp and the leading space to avoid
+	// having to match the timestamp part of the string in the test
+	result = result[i+2:]
+	if result != expected {
+		t.Errorf("expected %q, found %q", expected, result)
+	}
+
+}
