@@ -45,7 +45,7 @@ func TestUnilogReader(t *testing.T) {
 		for _, o := range tc.ops {
 			if o.read < 0 {
 				close(shutdown)
-				// HACK: Wait for the shutdown to propogate.
+				// HACK: Wait for the shutdown to propagate.
 				for !rd.(*UnilogReader).shuttingDown {
 					time.Sleep(1 * time.Millisecond)
 				}
