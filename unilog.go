@@ -127,7 +127,7 @@ const (
 	DefaultBuffer = 1 << 12
 )
 
-var stats *statsd.Client
+var Stats *statsd.Client
 
 func readlines(in io.Reader, bufsize int, shutdown chan struct{}) (<-chan string, <-chan error) {
 	linec := make(chan string, bufsize)
@@ -145,8 +145,8 @@ func readlines(in io.Reader, bufsize int, shutdown chan struct{}) (<-chan string
 			if s != "" {
 				s = strings.TrimRight(s, "\n")
 				linec <- s
-				if stats != nil {
-					stats.Count("unilog.bytes", int64(len(s)), nil, .1)
+				if Stats != nil {
+					Stats.Count("unilog.bytes", int64(len(s)), nil, .1)
 				}
 			}
 		}
@@ -314,10 +314,10 @@ func (u *Unilog) Main() {
 
 	fileName := u.target
 
-	stats, _ = statsd.New(StatsdAddress)
+	Stats, _ = statsd.New(StatsdAddress)
 
-	stats.Tags = append(stats.Tags, fmt.Sprintf("FileName:%s", fileName))
-	stats.Tags = append(stats.Tags, strings.Split(statstags, ",")...)
+	Stats.Tags = append(Stats.Tags, fmt.Sprintf("FileName:%s", fileName))
+	Stats.Tags = append(Stats.Tags, strings.Split(statstags, ",")...)
 
 	u.run()
 }
