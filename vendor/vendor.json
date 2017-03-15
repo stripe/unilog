@@ -9,6 +9,12 @@
 			"revisionTime": "2016-08-22T16:14:30Z"
 		},
 		{
+			"checksumSHA1": "4zQLQu8b/FdePcoXsZa2f+PlaAM=",
+			"path": "github.com/getsentry/raven-go",
+			"revision": "b68337dbf03e7fbb53d9fd9b63fd09b28e8f13f7",
+			"revisionTime": "2017-03-10T19:37:35Z"
+		},
+		{
 			"checksumSHA1": "9C4Av3ypK5pi173F76ogJT/d8x4=",
 			"path": "golang.org/x/crypto/ssh/terminal",
 			"revision": "c367d6eeb7c6158125f2f47e049f7eb7e251c09a",
