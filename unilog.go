@@ -101,7 +101,7 @@ func (u *Unilog) addFlags() {
 	boolFlag(&u.Verbose, "verbose", "v", false, "Echo lines to stdout")
 	flag.StringVar(&u.MailFrom, "mailfrom", u.MailFrom, "Address to send error emails from")
 	flag.StringVar(&u.MailTo, "mailto", u.MailTo, "Address to send error emails to")
-	flag.StringVar(&u.SentryDSN, "sentrydsn", u.MailTo, "Sentry DSN to send errors to")
+	flag.StringVar(&u.SentryDSN, "sentrydsn", u.SentryDSN, "Sentry DSN to send errors to")
 	stringFlag(&statstags, "statstags", "s", "", `(optional) tags to include with all statsd metrics (e.g. "foo:bar,baz:quz")`)
 }
 
@@ -337,7 +337,7 @@ func (u *Unilog) Main() {
 	Stats.Tags = append(Stats.Tags, fmt.Sprintf("FileName:%s", fileName))
 	Stats.Tags = append(Stats.Tags, strings.Split(statstags, ",")...)
 
-	raven.SetDSN(u.SentryDSN)
+	_ = raven.SetDSN(u.SentryDSN)
 
 	u.run()
 }
