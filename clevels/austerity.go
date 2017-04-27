@@ -56,6 +56,11 @@ func (a AusterityLevel) AusterityLevel() string {
 	return ""
 }
 
+// AusterityBuffer ensures that high-volume services will never block
+// when trying to read the system austerity level, even if the process
+// that updates the cache is slow. The tradeoff is that, when the system
+// austerity level is changed, it will read an extra $AusterityBuffer log
+// lines before the change takes effect.
 const AusterityBuffer = 100
 
 var CacheInterval = 30 * time.Second
