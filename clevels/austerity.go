@@ -1,15 +1,18 @@
-package unilog
+package clevels
 
 import (
 	"errors"
 	"io"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/DataDog/datadog-go/statsd"
 )
+
+var Stats *statsd.Client
 
 //go:generate stringer -type=AusterityLevel
 type AusterityLevel int
@@ -65,7 +68,9 @@ var CacheInterval = 30 * time.Second
 // to have their austerity level changes come into effect.
 var SystemAusterityLevel = make(chan AusterityLevel, AusterityBuffer)
 
-var AusterityFile = filepath.Join("/pay", "state", "austerity")
+// AusterityFile is the full path to a file that contains the current
+// system austerity level.
+var AusterityFile string
 
 var InvalidAusterityLevel = errors.New("Invalid austerity level")
 
@@ -78,7 +83,9 @@ func LoadLevel() (AusterityLevel, error) {
 		return DefaultAusterity, err
 	}
 	defer f.Close()
-	return ParseLevel(f)
+	level, err := ParseLevel(f)
+
+	return level, err
 }
 
 var canonicalRegex = regexp.MustCompile(`CANONICAL-\w+?-LINE`)
@@ -89,7 +96,7 @@ var clevelRegexes = []*regexp.Regexp{cLevelRegex, cLevelChalkRegex}
 
 // criticality parses the criticality level
 // of a log line. Defaults to the value of DefaultCriticality.
-func criticality(line string) AusterityLevel {
+func Criticality(line string) AusterityLevel {
 	// Things like CANONICAL-API-LINE should never be dropped
 	if canonicalRegex.MatchString(line) {
 		return CriticalPlus

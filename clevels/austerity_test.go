@@ -1,4 +1,4 @@
-package unilog
+package clevels
 
 import (
 	"os"
@@ -142,7 +142,7 @@ func TestCriticality(t *testing.T) {
 			name = tc.name
 		}
 		t.Run(name, func(t *testing.T) {
-			l := criticality(tc.line)
+			l := Criticality(tc.line)
 			assert.Equal(t, tc.level.String(), l.String())
 		})
 	}
