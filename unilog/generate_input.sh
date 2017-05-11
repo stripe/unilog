@@ -1,4 +1,6 @@
 #! /bin/bash
+# This script will generate input at different clevels
+# to help test behavior locally.
 
 set -e
 
