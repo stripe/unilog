@@ -31,5 +31,18 @@ filling up (and thus blocking the daemon from writing) during brief
 periods of disk overload or hangs (sadly common in virtualized
 environments).
 
+### Filters
+
+Unilog can be configured to apply filters to each line and perform arbitrary transformations. (For example, you may want to strip out sensitive information, or strip high-volume logs).
+
+### Criticality and Austerity
+
+Unilog contains an optional system for managing log volume, using criticality and austerity levels. If this systems is enabled, every log line has a **criticality level** associated with it. There are four levels of log criticality. In ascending order of importance, they are: `sheddable`, `sheddableplus` (default), `critical`, and `criticalplus`. (These names are taken from [Site Reliability Engineering, How Google Runs Production Systems](https://landing.google.com/sre/book.html).)
+
+During times of high log volume, log lines may be sampled at exponential rates. The criticality level (clevel) of a log line determines its relative priority when sampling. By default, the system **austerity level** is set to `sheddable`, which means that all lines are preserved. If the austerity level is raised to `sheddableplus`, then only 10% of lines logged at `sheddable` are preserved, and the rest are filtered. If the austerity level is raised to `critical`, then 10% of lines logged at `clevel=sheddableplus` are preserved, and 1% of lines logged at `clevel=sheddable` are preserved, and so forth.
+
+Criticality levels operate using filters, so this system is not just limited to sampling logs to reduce volume - it can be used to apply arbitrary transformations to a random subset of log lines.
+
 [daemontools]: http://cr.yp.to/daemontools.html
 [multilog]: http://cr.yp.to/daemontools/multilog.html
+[googlsre]: https://landing.google.com/sre/book.html

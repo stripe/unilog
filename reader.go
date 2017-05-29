@@ -1,8 +1,6 @@
 package unilog
 
-import (
-	"io"
-)
+import "io"
 
 // UnilogReader wraps an existing io.Reader and adds the ability to
 // perform a graceful shutdown by reading from the underlying Reader

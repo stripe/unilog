@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/getsentry/raven-go"
 
+	"github.com/stripe/unilog/clevels"
 	"golang.org/x/crypto/ssh/terminal"
 	flag "launchpad.net/gnuflag"
 )
@@ -102,6 +103,7 @@ func (u *Unilog) addFlags() {
 	flag.StringVar(&u.MailFrom, "mailfrom", u.MailFrom, "Address to send error emails from")
 	flag.StringVar(&u.MailTo, "mailto", u.MailTo, "Address to send error emails to")
 	flag.StringVar(&u.SentryDSN, "sentrydsn", u.SentryDSN, "Sentry DSN to send errors to")
+	flag.StringVar(&clevels.AusterityFile, "austerityfile", clevels.AusterityFile, "(optional) Location of file to read austerity level from")
 	stringFlag(&statstags, "statstags", "s", "", `(optional) tags to include with all statsd metrics (e.g. "foo:bar,baz:quz")`)
 }
 
@@ -336,6 +338,8 @@ func (u *Unilog) Main() {
 
 	Stats.Tags = append(Stats.Tags, fmt.Sprintf("FileName:%s", fileName))
 	Stats.Tags = append(Stats.Tags, strings.Split(statstags, ",")...)
+
+	clevels.Stats = Stats
 
 	_ = raven.SetDSN(u.SentryDSN)
 
