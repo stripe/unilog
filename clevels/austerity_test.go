@@ -115,6 +115,12 @@ func TestCriticality(t *testing.T) {
 			level: CriticalPlus,
 		},
 		{
+			name: "canonical-monster-line",
+			// test for case-insensitivity
+			line:  `[2016-11-10 19:10:49.230930] [22560|adminbox--04ec81f3361370d7f.northwest.stripe.io/kUku-rmgfZ-349 0000000000000000>a020f53ed1dd83ef] canonical-monster-line: path="/fonts/glyphicons-halflings-regular.woff" http_method=GET referer="/css/bootstrap3.min.css" response_content_type="application/octet-stream" status=200`,
+			level: CriticalPlus,
+		},
+		{
 			name:  "PlainOldLogLine",
 			line:  `[2016-11-10 19:01:02.461489] [21515|adminbox--04ec81f3361370d7f.northwest.stripe.io/kUku-wvrZK-28 0000000000000000>93e612b5bd9b69eb] HTTP response headers: Content-Type="text/html;charset=utf-8" Content-Length="10879" Set`,
 			level: SheddablePlus,
