@@ -32,8 +32,6 @@ func samplingRate(austerityLevel, criticalityLevel clevels.AusterityLevel) float
 		return 1
 	}
 
-	return 0
-
 	levelDiff := austerityLevel - criticalityLevel
 	samplingRate := math.Pow(10, float64(-levelDiff))
 
