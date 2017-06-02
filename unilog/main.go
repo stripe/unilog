@@ -12,7 +12,7 @@ import (
 func austerityFilter(line string) string {
 	criticalityLevel := clevels.Criticality(line)
 	austerityLevel := <-clevels.SystemAusterityLevel
-	fmt.Println("austerity level is %s", austerityLevel)
+	fmt.Printf("austerity level is %s\n", austerityLevel)
 
 	if criticalityLevel >= austerityLevel {
 		return line
@@ -31,8 +31,6 @@ func samplingRate(austerityLevel, criticalityLevel clevels.AusterityLevel) float
 	if criticalityLevel > austerityLevel {
 		return 1
 	}
-
-	return 0
 
 	levelDiff := austerityLevel - criticalityLevel
 	samplingRate := math.Pow(10, float64(-levelDiff))
