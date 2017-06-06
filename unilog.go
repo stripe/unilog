@@ -262,10 +262,8 @@ func (u *Unilog) handleError(action string, e error) {
 	}
 
 	if Stats != nil {
-		name := fmt.Sprintf("unilog.errors.%s", action)
-		name = strings.Replace(name, " ", "_", -1)
 		emsg := strings.Replace(e.Error(), " ", "_", -1)
-		Stats.Count(name, 1, []string{emsg}, 1)
+		Stats.Count("unilog.errors.error_total", 1, []string{emsg}, 1)
 	}
 
 	if u.b.count == 0 && u.SentryDSN != "" {
