@@ -198,6 +198,9 @@ func (u *Unilog) format(line string) string {
 
 func (u *Unilog) logLine(line string) {
 	formatted := u.format(line)
+	if u.Verbose {
+		defer io.WriteString(os.Stdout, formatted)
+	}
 
 	var e error
 	if u.file == nil {
@@ -206,17 +209,13 @@ func (u *Unilog) logLine(line string) {
 	if e != nil {
 		action := fmt.Sprintf("reopen %s", u.target)
 		u.handleError(action, e)
-	} else {
-		_, e = io.WriteString(u.file, formatted)
-		if e != nil {
-			u.handleError("write to log", e)
-		} else {
-			u.b.broken = false
-		}
+		return
 	}
-
-	if u.Verbose {
-		io.WriteString(os.Stdout, formatted)
+	_, e = io.WriteString(u.file, formatted)
+	if e != nil {
+		u.handleError("write to log", e)
+	} else {
+		u.b.broken = false
 	}
 }
 
