@@ -207,13 +207,12 @@ func (u *Unilog) logLine(line string) {
 		e = u.reopen()
 	}
 	if e != nil {
-		action := fmt.Sprintf("reopen %s", u.target)
-		u.handleError(action, e)
+		u.handleError("reopen_file", e)
 		return
 	}
 	_, e = io.WriteString(u.file, formatted)
 	if e != nil {
-		u.handleError("write to log", e)
+		u.handleError("write_to_log", e)
 	} else {
 		u.b.broken = false
 	}
@@ -262,7 +261,7 @@ func (u *Unilog) handleError(action string, e error) {
 	}
 
 	if Stats != nil {
-		emsg := strings.Replace(e.Error(), " ", "_", -1)
+		emsg := fmt.Sprintf("err_action:%s", action)
 		Stats.Count("unilog.errors.error_total", 1, []string{emsg}, 1)
 	}
 
@@ -342,7 +341,7 @@ func (u *Unilog) Main() {
 
 	Stats, _ = statsd.New(u.StatsdAddress)
 
-	Stats.Tags = append(Stats.Tags, fmt.Sprintf("FileName:%s", fileName))
+	Stats.Tags = append(Stats.Tags, fmt.Sprintf("file_name:%s", fileName))
 	if statstags != "" {
 		Stats.Tags = append(Stats.Tags, strings.Split(statstags, ",")...)
 	}
