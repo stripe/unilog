@@ -262,7 +262,7 @@ func (u *Unilog) handleError(action string, e error) {
 
 	if Stats != nil {
 		emsg := fmt.Sprintf("err_action:%s", action)
-		Stats.Count("unilog.errors.error_total", 1, []string{emsg}, 1)
+		Stats.Count("unilog.errors_total", 1, []string{emsg}, 1)
 	}
 
 	if u.b.count == 0 && u.SentryDSN != "" {
