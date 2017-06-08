@@ -3,7 +3,6 @@ package unilog
 import (
 	"bufio"
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -14,16 +13,14 @@ import (
 	"text/template"
 	"time"
 
+	"golang.org/x/crypto/ssh/terminal"
+
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/getsentry/raven-go"
 
 	"github.com/stripe/unilog/clevels"
-	"golang.org/x/crypto/ssh/terminal"
 	flag "launchpad.net/gnuflag"
 )
-
-// Send all metrics to the local veneur
-const StatsdAddress = "127.0.0.1:8200"
 
 // hold the argument passed in with "-statstags"
 var statstags string
@@ -39,6 +36,9 @@ type Unilog struct {
 	// Sentry DSN for reporting Unilog errors
 	// If this is unset, unilog will not report errors to Sentry
 	SentryDSN string
+	// StatsdAddress for sending metrics
+	// If this is unset, it wlil default to "127.0.0.1:8200" -> TODO: is this what we want?
+	StatsdAddress string
 	// The email address from which unilog will send mail on
 	// errors
 	MailTo string
@@ -103,6 +103,7 @@ func (u *Unilog) addFlags() {
 	flag.StringVar(&u.MailFrom, "mailfrom", u.MailFrom, "Address to send error emails from")
 	flag.StringVar(&u.MailTo, "mailto", u.MailTo, "Address to send error emails to")
 	flag.StringVar(&u.SentryDSN, "sentrydsn", u.SentryDSN, "Sentry DSN to send errors to")
+	flag.StringVar(&u.StatsdAddress, "statsdaddress", "127.0.0.1:8200", "Address to send statsd metrics to")
 	flag.StringVar(&clevels.AusterityFile, "austerityfile", clevels.AusterityFile, "(optional) Location of file to read austerity level from")
 	stringFlag(&statstags, "statstags", "s", "", `(optional) tags to include with all statsd metrics (e.g. "foo:bar,baz:quz")`)
 }
@@ -167,10 +168,10 @@ func readlines(in io.Reader, bufsize int, shutdown chan struct{}) (<-chan string
 	return linec, errc
 }
 
-func (u *Unilog) reopen() {
+func (u *Unilog) reopen() error {
 	if u.target == "-" {
 		u.file = os.Stdout
-		return
+		return nil
 	}
 
 	if u.file != nil {
@@ -179,11 +180,11 @@ func (u *Unilog) reopen() {
 	}
 
 	var e error
-
 	if u.file, e = os.OpenFile(u.target, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644); e != nil {
-		u.handleError(fmt.Sprintf("reopen %s", u.target), e)
 		u.file = nil
+		return e
 	}
+	return nil
 }
 
 func (u *Unilog) format(line string) string {
@@ -197,24 +198,23 @@ func (u *Unilog) format(line string) string {
 
 func (u *Unilog) logLine(line string) {
 	formatted := u.format(line)
+	if u.Verbose {
+		defer io.WriteString(os.Stdout, formatted)
+	}
 
 	var e error
 	if u.file == nil {
-		u.reopen()
-	}
-	if u.file != nil {
-		_, e = io.WriteString(u.file, formatted)
-	} else {
-		e = errors.New("unable to open log")
+		e = u.reopen()
 	}
 	if e != nil {
-		u.handleError("write to log", e)
+		u.handleError("reopen_file", e)
+		return
+	}
+	_, e = io.WriteString(u.file, formatted)
+	if e != nil {
+		u.handleError("write_to_log", e)
 	} else {
 		u.b.broken = false
-	}
-
-	if u.Verbose {
-		io.WriteString(os.Stdout, formatted)
 	}
 }
 
@@ -258,6 +258,11 @@ func (u *Unilog) handleError(action string, e error) {
 	if terminal.IsTerminal(1) {
 		fmt.Printf("%s\n", message)
 		return
+	}
+
+	if Stats != nil {
+		emsg := fmt.Sprintf("err_action:%s", action)
+		Stats.Count("unilog.errors_total", 1, []string{emsg}, 1)
 	}
 
 	if u.b.count == 0 && u.SentryDSN != "" {
@@ -334,10 +339,12 @@ func (u *Unilog) Main() {
 
 	fileName := u.target
 
-	Stats, _ = statsd.New(StatsdAddress)
+	Stats, _ = statsd.New(u.StatsdAddress)
 
-	Stats.Tags = append(Stats.Tags, fmt.Sprintf("FileName:%s", fileName))
-	Stats.Tags = append(Stats.Tags, strings.Split(statstags, ",")...)
+	Stats.Tags = append(Stats.Tags, fmt.Sprintf("file_name:%s", fileName))
+	if statstags != "" {
+		Stats.Tags = append(Stats.Tags, strings.Split(statstags, ",")...)
+	}
 
 	clevels.Stats = Stats
 
