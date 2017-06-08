@@ -13,8 +13,6 @@ import (
 	"text/template"
 	"time"
 
-	"golang.org/x/crypto/ssh/terminal"
-
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/getsentry/raven-go"
 
@@ -62,6 +60,7 @@ type Unilog struct {
 
 	Name    string
 	Verbose bool
+	Debug   bool
 
 	lines     <-chan string
 	errs      <-chan error
@@ -100,6 +99,7 @@ func (u *Unilog) fillDefaults() {
 func (u *Unilog) addFlags() {
 	stringFlag(&u.Name, "name", "a", "", "Name of logged program")
 	boolFlag(&u.Verbose, "verbose", "v", false, "Echo lines to stdout")
+	boolFlag(&u.Debug, "debug", "d", false, "Print debug messages")
 	flag.StringVar(&u.MailFrom, "mailfrom", u.MailFrom, "Address to send error emails from")
 	flag.StringVar(&u.MailTo, "mailto", u.MailTo, "Address to send error emails to")
 	flag.StringVar(&u.SentryDSN, "sentrydsn", u.SentryDSN, "Sentry DSN to send errors to")
@@ -253,11 +253,8 @@ func (u *Unilog) handleError(action string, e error) {
 		u.b.count = 0
 	}
 
-	message := fmt.Sprintf("Could not %s: %s", action, e.Error())
-
-	if terminal.IsTerminal(1) {
-		fmt.Printf("%s\n", message)
-		return
+	if u.Debug {
+		fmt.Fprintf(os.Stderr, "Could not %s: %s\n", action, e.Error())
 	}
 
 	if Stats != nil {
