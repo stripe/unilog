@@ -66,6 +66,7 @@ type Unilog struct {
 	errs      <-chan error
 	sigReopen <-chan os.Signal
 	sigTerm   <-chan os.Signal
+	sigQuit   <-chan os.Signal
 	shutdown  chan struct{}
 	file      io.WriteCloser
 	target    string
@@ -327,6 +328,10 @@ func (u *Unilog) Main() {
 	term := make(chan os.Signal, 2)
 	signal.Notify(term, syscall.SIGTERM, syscall.SIGINT)
 	u.sigTerm = term
+
+	quit := make(chan os.Signal, 2)
+	signal.Notify(quit, syscall.SIGQUIT)
+	u.sigQuit = quit
 
 	u.shutdown = make(chan struct{})
 	u.target = flag.Arg(0)
