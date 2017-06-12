@@ -235,6 +235,10 @@ func (u *Unilog) run() {
 				close(u.shutdown)
 				u.shutdown = nil
 			}
+		case <-u.sigQuit:
+			if u.shutdown == nil {
+				os.Exit(1)
+			}
 		case line, ok := <-u.lines:
 			if !ok {
 				return
