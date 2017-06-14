@@ -2,6 +2,7 @@ package clevels
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -166,7 +167,7 @@ func SendSystemAusterityLevel() {
 			l, err := LoadLevel()
 			if err != nil {
 				if Stats != nil {
-					Stats.Count("unilog.errors.load_level", 1, nil, 1)
+					Stats.Count("unilog.errors.load_level", 1, []string{fmt.Sprintf("error:%s", err.Error())}, 1)
 				}
 				continue
 			}
