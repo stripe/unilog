@@ -131,6 +131,7 @@ func TestNoExitOnQuit(t *testing.T) {
 	u.sigQuit = quit
 	u.exit = func(code int) {
 		exitCode = code
+		t.Error("Called exit.")
 	}
 	u.shutdown = make(chan struct{})
 
