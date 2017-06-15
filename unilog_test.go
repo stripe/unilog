@@ -1,7 +1,9 @@
 package unilog
 
 import (
+	"os"
 	"strings"
+	"syscall"
 	"testing"
 )
 
@@ -81,5 +83,67 @@ func TestFilterFunction(t *testing.T) {
 	result = result[i+2:]
 	if result != expected {
 		t.Errorf("expected %q, found %q", expected, result)
+	}
+}
+
+func TestTwoStateExit(t *testing.T) {
+	r := strings.NewReader(strings.Join(shakespeare, "\n"))
+	u := &Unilog{}
+	exitCode := -1
+
+	term := make(chan os.Signal, 2)
+	quit := make(chan os.Signal, 2)
+	exit := make(chan int, 2)
+
+	u.sigTerm = term
+	u.sigQuit = quit
+	u.exit = func(code int) {
+		exitCode = code
+		exit <- 1
+	}
+	u.shutdown = make(chan struct{})
+
+	go u.run()
+
+	term <- syscall.SIGTERM
+
+	u.lines, u.errs = readlines(r, u.BufferLines, u.shutdown)
+
+	term <- syscall.SIGTERM
+	<-u.shutdown
+	quit <- syscall.SIGQUIT
+
+	<-exit
+	if exitCode != 1 {
+		t.Error("Did not call exit.")
+	}
+}
+
+func TestNoExitOnQuit(t *testing.T) {
+	r := strings.NewReader(strings.Join(shakespeare, "\n"))
+	u := &Unilog{}
+	exitCode := -1
+
+	term := make(chan os.Signal, 2)
+	quit := make(chan os.Signal, 2)
+
+	u.sigTerm = term
+	u.sigQuit = quit
+	u.exit = func(code int) {
+		exitCode = code
+	}
+	u.shutdown = make(chan struct{})
+
+	go u.run()
+
+	term <- syscall.SIGTERM
+
+	u.lines, u.errs = readlines(r, u.BufferLines, u.shutdown)
+
+	term <- syscall.SIGTERM
+	<-u.shutdown
+
+	if exitCode != -1 {
+		t.Error("Called exit.")
 	}
 }
