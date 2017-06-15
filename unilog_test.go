@@ -116,7 +116,7 @@ func TestTwoStateExit(t *testing.T) {
 	}
 }
 
-func TestSigTermShutdown(t *testing.T) {
+func TestSigTermNoExit(t *testing.T) {
 	r := strings.NewReader(strings.Join(shakespeare, "\n"))
 	u := &Unilog{}
 	exitCode := -1
@@ -135,7 +135,6 @@ func TestSigTermShutdown(t *testing.T) {
 
 	term <- syscall.SIGTERM
 	u.lines, u.errs = readlines(r, u.BufferLines, u.shutdown)
-	<-u.shutdown
 
 	if exitCode != -1 {
 		t.Error("Called exit.")
