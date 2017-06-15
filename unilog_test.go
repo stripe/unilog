@@ -106,10 +106,7 @@ func TestTwoStateExit(t *testing.T) {
 	go u.run()
 
 	term <- syscall.SIGTERM
-
 	u.lines, u.errs = readlines(r, u.BufferLines, u.shutdown)
-
-	term <- syscall.SIGTERM
 	<-u.shutdown
 	quit <- syscall.SIGQUIT
 
@@ -119,7 +116,7 @@ func TestTwoStateExit(t *testing.T) {
 	}
 }
 
-func TestNoExitOnQuit(t *testing.T) {
+func TestSigTermShutdown(t *testing.T) {
 	r := strings.NewReader(strings.Join(shakespeare, "\n"))
 	u := &Unilog{}
 	exitCode := -1
@@ -130,7 +127,6 @@ func TestNoExitOnQuit(t *testing.T) {
 	u.sigTerm = term
 	u.sigQuit = quit
 	u.exit = func(code int) {
-		exitCode = code
 		t.Error("Called exit.")
 	}
 	u.shutdown = make(chan struct{})
@@ -138,13 +134,30 @@ func TestNoExitOnQuit(t *testing.T) {
 	go u.run()
 
 	term <- syscall.SIGTERM
-
 	u.lines, u.errs = readlines(r, u.BufferLines, u.shutdown)
-
-	term <- syscall.SIGTERM
 	<-u.shutdown
 
 	if exitCode != -1 {
 		t.Error("Called exit.")
 	}
+}
+
+func TestSigQuitNoOp(t *testing.T) {
+	r := strings.NewReader(strings.Join(shakespeare, "\n"))
+	u := &Unilog{}
+
+	term := make(chan os.Signal, 2)
+	quit := make(chan os.Signal, 2)
+
+	u.sigTerm = term
+	u.sigQuit = quit
+	u.exit = func(code int) {
+		t.Error("Called exit.")
+	}
+	u.shutdown = make(chan struct{})
+
+	go u.run()
+
+	quit <- syscall.SIGQUIT
+	u.lines, u.errs = readlines(r, u.BufferLines, u.shutdown)
 }
