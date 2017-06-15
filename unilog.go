@@ -91,6 +91,7 @@ func boolFlag(val *bool, longname, shortname string, init bool, help string) {
 }
 
 func (u *Unilog) fillDefaults() {
+	u.exit = os.Exit
 	if u.Version == "" {
 		u.Version = Version
 	}
