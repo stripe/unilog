@@ -241,6 +241,7 @@ func (u *Unilog) run() {
 		case <-u.sigQuit:
 			if u.shutdown == nil {
 				u.exit(1)
+				return
 			}
 		case line, ok := <-u.lines:
 			if !ok {
