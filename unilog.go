@@ -76,6 +76,8 @@ type Unilog struct {
 		at     time.Time
 		count  int
 	}
+
+	exit func(int)
 }
 
 func stringFlag(val *string, longname, shortname, init, help string) {
@@ -237,7 +239,7 @@ func (u *Unilog) run() {
 			}
 		case <-u.sigQuit:
 			if u.shutdown == nil {
-				os.Exit(1)
+				u.exit(1)
 			}
 		case line, ok := <-u.lines:
 			if !ok {
