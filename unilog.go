@@ -66,6 +66,7 @@ type Unilog struct {
 	errs      <-chan error
 	sigReopen <-chan os.Signal
 	sigTerm   <-chan os.Signal
+	sigQuit   <-chan os.Signal
 	shutdown  chan struct{}
 	file      io.WriteCloser
 	target    string
@@ -75,6 +76,8 @@ type Unilog struct {
 		at     time.Time
 		count  int
 	}
+
+	exit func(int)
 }
 
 func stringFlag(val *string, longname, shortname, init, help string) {
@@ -88,6 +91,7 @@ func boolFlag(val *bool, longname, shortname string, init bool, help string) {
 }
 
 func (u *Unilog) fillDefaults() {
+	u.exit = os.Exit
 	if u.Version == "" {
 		u.Version = Version
 	}
@@ -234,6 +238,11 @@ func (u *Unilog) run() {
 				close(u.shutdown)
 				u.shutdown = nil
 			}
+		case <-u.sigQuit:
+			if u.shutdown == nil {
+				u.exit(1)
+				return
+			}
 		case line, ok := <-u.lines:
 			if !ok {
 				return
@@ -327,6 +336,10 @@ func (u *Unilog) Main() {
 	term := make(chan os.Signal, 2)
 	signal.Notify(term, syscall.SIGTERM, syscall.SIGINT)
 	u.sigTerm = term
+
+	quit := make(chan os.Signal, 2)
+	signal.Notify(quit, syscall.SIGQUIT)
+	u.sigQuit = quit
 
 	u.shutdown = make(chan struct{})
 	u.target = flag.Arg(0)
