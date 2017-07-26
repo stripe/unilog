@@ -5,11 +5,12 @@ import (
 	"math"
 	"math/rand"
 
+	"github.com/DataDog/datadog-go/statsd"
 	"github.com/stripe/unilog"
 	"github.com/stripe/unilog/clevels"
 )
 
-func austerityFilter(line string) string {
+func austerityFilter(line string, stats *statsd.Client) string {
 	criticalityLevel := clevels.Criticality(line)
 	austerityLevel := <-clevels.SystemAusterityLevel
 	fmt.Printf("austerity level is %s\n", austerityLevel)
