@@ -1,6 +1,7 @@
 package unilog
 
 import (
+	"github.com/DataDog/datadog-go/statsd"
 	"os"
 	"strings"
 	"syscall"
@@ -58,11 +59,11 @@ func TestFilterFunction(t *testing.T) {
 	u := &Unilog{}
 
 	// double the first two instances of the character "e"
-	var doubleEFilter = func(s string) string {
+	var doubleEFilter = func(s string, stats *statsd.Client) string {
 		return strings.Replace(s, "e", "ee", 2)
 	}
 
-	var isToAintFilter = func(s string) string {
+	var isToAintFilter = func(s string, stats *statsd.Client) string {
 		return strings.Replace(s, "is", "ain't", -1)
 	}
 

@@ -25,7 +25,7 @@ var statstags string
 
 // A filter to be applied to log lines prior to prefixing them
 // with a timestamp and logging them.
-type Filter func(string) string
+type Filter func(string, *statsd.Client) string
 
 // Unilog represents a unilog process. unilog is intended to be used
 // as a standalone application, but is exported as a package to allow
@@ -194,7 +194,7 @@ func (u *Unilog) reopen() error {
 func (u *Unilog) format(line string) string {
 	for _, filter := range u.Filters {
 		if filter != nil {
-			line = filter(line)
+			line = filter(line, Stats)
 		}
 	}
 	return fmt.Sprintf("[%s] %s\n", time.Now().Format("2006-01-02 15:04:05.000000"), line)
