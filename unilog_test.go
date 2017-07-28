@@ -87,7 +87,6 @@ func TestFilterFunction(t *testing.T) {
 }
 
 func TestTwoStateExit(t *testing.T) {
-	r := strings.NewReader(strings.Join(shakespeare, "\n"))
 	u := &Unilog{}
 	exitCode := -1
 
@@ -106,8 +105,8 @@ func TestTwoStateExit(t *testing.T) {
 	go u.run()
 
 	term <- syscall.SIGTERM
-	u.lines, u.errs = readlines(r, u.BufferLines, u.shutdown)
 	<-u.shutdown
+
 	quit <- syscall.SIGQUIT
 
 	<-exit
@@ -130,10 +129,10 @@ func TestSigTermNoExit(t *testing.T) {
 	}
 	u.shutdown = make(chan struct{})
 
+	go u.run()
+
 	term <- syscall.SIGTERM
 	u.lines, u.errs = readlines(r, u.BufferLines, u.shutdown)
-
-	go u.run()
 }
 
 func TestSigQuitNoOp(t *testing.T) {
@@ -150,7 +149,8 @@ func TestSigQuitNoOp(t *testing.T) {
 	}
 	u.shutdown = make(chan struct{})
 
+	go u.run()
+
 	quit <- syscall.SIGQUIT
 	u.lines, u.errs = readlines(r, u.BufferLines, u.shutdown)
-	go u.run()
 }
