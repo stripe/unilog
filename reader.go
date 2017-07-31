@@ -42,10 +42,6 @@ func (r *UnilogReader) Read(buf []byte) (int, error) {
 		return 0, io.EOF
 	}
 
-	if r.isShuttingDown() {
-		buf = buf[:1]
-	}
-
 	n, e := r.inner.Read(buf)
 	if n > 0 {
 		r.nl = buf[n-1] == '\n'
