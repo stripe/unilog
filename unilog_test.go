@@ -128,7 +128,9 @@ func TestSigTermNoExit(t *testing.T) {
 	u.shutdown = make(chan struct{})
 
 	term <- syscall.SIGTERM
-	u.selector()
+	if !u.tick() {
+		t.Error("Tick returned false.")
+	}
 }
 
 func TestSigQuitNoOp(t *testing.T) {
@@ -145,5 +147,7 @@ func TestSigQuitNoOp(t *testing.T) {
 	u.shutdown = make(chan struct{})
 
 	quit <- syscall.SIGQUIT
-	u.selector()
+	if !u.tick() {
+		t.Error("Tick returned false.")
+	}
 }
