@@ -1,6 +1,9 @@
 package unilog
 
-import "io"
+import (
+	"io"
+	"sync"
+)
 
 // UnilogReader wraps an existing io.Reader and adds the ability to
 // perform a graceful shutdown by reading from the underlying Reader
@@ -11,6 +14,7 @@ type UnilogReader struct {
 	// Was the last character read a newline?
 	nl           bool
 	shuttingDown bool
+	mtx          sync.Mutex
 }
 
 // Creates a new UnilogReader. Once shutdown becomes readable, the
@@ -20,23 +24,31 @@ func NewUnilogReader(in io.Reader, shutdown <-chan struct{}) io.Reader {
 	r := &UnilogReader{inner: in}
 	go func() {
 		<-shutdown
+		r.mtx.Lock()
 		r.shuttingDown = true
+		r.mtx.Unlock()
 	}()
 	return r
 }
 
-func (u *UnilogReader) Read(buf []byte) (int, error) {
-	if u.nl && u.shuttingDown {
+func (r *UnilogReader) isShuttingDown() bool {
+	r.mtx.Lock()
+	defer r.mtx.Unlock()
+	return r.shuttingDown
+}
+
+func (r *UnilogReader) Read(buf []byte) (int, error) {
+	if r.nl && r.isShuttingDown() {
 		return 0, io.EOF
 	}
 
-	if u.shuttingDown {
+	if r.isShuttingDown() {
 		buf = buf[:1]
 	}
 
-	n, e := u.inner.Read(buf)
+	n, e := r.inner.Read(buf)
 	if n > 0 {
-		u.nl = buf[n-1] == '\n'
+		r.nl = buf[n-1] == '\n'
 	}
 	return n, e
 }
