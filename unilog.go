@@ -77,7 +77,8 @@ type Unilog struct {
 		count  int
 	}
 
-	exit func(int)
+	exit           func(int)
+	shouldShutdown bool
 }
 
 func stringFlag(val *string, longname, shortname, init, help string) {
@@ -224,31 +225,36 @@ func (u *Unilog) logLine(line string) {
 
 func (u *Unilog) run() {
 	for {
-		select {
-		case e := <-u.errs:
-			if e != nil && e != io.EOF {
-				panic(e)
-			} else {
-				return
-			}
-		case <-u.sigReopen:
-			u.reopen()
-		case <-u.sigTerm:
-			if u.shutdown != nil {
-				close(u.shutdown)
-				u.shutdown = nil
-			}
-		case <-u.sigQuit:
-			if u.shutdown == nil {
-				u.exit(1)
-				return
-			}
-		case line, ok := <-u.lines:
-			if !ok {
-				return
-			}
-			u.logLine(line)
+		u.selector()
+	}
+}
+
+func (u *Unilog) selector() {
+	select {
+	case e := <-u.errs:
+		if e != nil && e != io.EOF {
+			panic(e)
+		} else {
+			return
 		}
+	case <-u.sigReopen:
+		u.reopen()
+	case <-u.sigTerm:
+		select {
+		case u.shutdown <- struct{}{}:
+			u.shouldShutdown = true
+		default:
+		}
+	case <-u.sigQuit:
+		if u.shouldShutdown {
+			u.exit(1)
+			return
+		}
+	case line, ok := <-u.lines:
+		if !ok {
+			return
+		}
+		u.logLine(line)
 	}
 }
 
