@@ -225,17 +225,22 @@ func (u *Unilog) logLine(line string) {
 
 func (u *Unilog) run() {
 	for {
-		u.selector()
+		if !u.tick() {
+			return
+		}
 	}
 }
 
-func (u *Unilog) selector() {
+// "tick" is Unilog's event loop
+// returns true if Unilog should keep running,
+// and false if it should stop.
+func (u *Unilog) tick() bool {
 	select {
 	case e := <-u.errs:
 		if e != nil && e != io.EOF {
 			panic(e)
 		} else {
-			return
+			return false
 		}
 	case <-u.sigReopen:
 		u.reopen()
@@ -248,14 +253,15 @@ func (u *Unilog) selector() {
 	case <-u.sigQuit:
 		if u.shouldShutdown {
 			u.exit(1)
-			return
+			return false
 		}
 	case line, ok := <-u.lines:
 		if !ok {
-			return
+			return false
 		}
 		u.logLine(line)
 	}
+	return true
 }
 
 func (u *Unilog) handleError(action string, e error) {
