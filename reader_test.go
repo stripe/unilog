@@ -1,6 +1,7 @@
 package unilog
 
 import (
+	"bufio"
 	"io"
 	"strings"
 	"testing"
@@ -12,7 +13,7 @@ type op struct {
 	expect string
 }
 
-func TestUnilogReader(t *testing.T) {
+func testUnilogReader(t *testing.T) {
 	var twoLines = "hello world\nsecond line\n"
 	tests := []struct {
 		in  string
@@ -77,4 +78,57 @@ func TestUnilogReader(t *testing.T) {
 			}
 		}
 	}
+}
+
+type OurReader struct {
+	input chan []byte
+}
+
+func (or *OurReader) Read(p []byte) (n int, err error) {
+	bs, ok := <-or.input
+	if !ok {
+		return 0, io.EOF
+	}
+	return copy(p, bs), nil
+}
+
+func TestReaderAlone(t *testing.T) {
+	t.Run("basic", func(t *testing.T) {
+		input := make(chan []byte, 1)
+		inRdr := OurReader{input}
+		shutdown := make(chan struct{}, 1)
+		close(shutdown)
+		rdr := NewUnilogReader(&inRdr, shutdown)
+		bufRdr := bufio.NewReader(rdr)
+		input <- []byte("hello I am a line\n")
+		line, err := bufRdr.ReadString('\n')
+		if err != nil {
+			t.Error(err)
+		}
+		if line != "hello I am a line\n" {
+			t.Error(line)
+		}
+	})
+
+	// Less happy case: shutdown with a missing newline.
+	t.Run("complex", func(t *testing.T) {
+		input := make(chan []byte)
+		inRdr := OurReader{input}
+		shutdown := make(chan struct{})
+		close(shutdown)
+		rdr := NewUnilogReader(&inRdr, shutdown)
+		bufRdr := bufio.NewReader(rdr)
+
+		go func() {
+			input <- []byte("unterminated")
+			input <- []byte("done\n")
+		}()
+		line, err := bufRdr.ReadString('\n')
+		if err != nil {
+			t.Error(err)
+		}
+		if line != "unterminateddone\n" {
+			t.Error(line)
+		}
+	})
 }
