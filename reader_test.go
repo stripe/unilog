@@ -41,13 +41,13 @@ func testUnilogReader(t *testing.T) {
 	}
 	for i, tc := range tests {
 		shutdown := make(chan struct{})
-		rd := NewUnilogReader(strings.NewReader(tc.in), shutdown)
+		rd := NewReader(strings.NewReader(tc.in), shutdown)
 		buf := make([]byte, 128)
 		for _, o := range tc.ops {
 			if o.read < 0 {
 				close(shutdown)
 				// HACK: Wait for the shutdown to propagate.
-				for !rd.(*UnilogReader).shuttingDown {
+				for !rd.(*Reader).shuttingDown {
 					time.Sleep(1 * time.Millisecond)
 				}
 				continue
@@ -97,7 +97,7 @@ func TestReaderBasic(t *testing.T) {
 	inRdr := OurReader{input}
 	shutdown := make(chan struct{}, 1)
 	close(shutdown)
-	rdr := NewUnilogReader(&inRdr, shutdown)
+	rdr := NewReader(&inRdr, shutdown)
 	bufRdr := bufio.NewReader(rdr)
 	input <- []byte("hello I am a line\n")
 	line, err := bufRdr.ReadString('\n')
@@ -114,7 +114,7 @@ func TestReaderComplex(t *testing.T) {
 	inRdr := OurReader{input}
 	shutdown := make(chan struct{})
 	close(shutdown)
-	rdr := NewUnilogReader(&inRdr, shutdown)
+	rdr := NewReader(&inRdr, shutdown)
 	bufRdr := bufio.NewReader(rdr)
 
 	go func() {

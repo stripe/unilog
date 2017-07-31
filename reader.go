@@ -5,11 +5,11 @@ import (
 	"sync"
 )
 
-// UnilogReader wraps an existing io.Reader and adds the ability to
+// Reader wraps an existing io.Reader and adds the ability to
 // perform a graceful shutdown by reading from the underlying Reader
 // up through the next newline character, and then start returning
 // EOF.
-type UnilogReader struct {
+type Reader struct {
 	inner io.Reader
 	// Was the last character read a newline?
 	nl           bool
@@ -17,11 +17,11 @@ type UnilogReader struct {
 	mtx          sync.Mutex
 }
 
-// Creates a new UnilogReader. Once shutdown becomes readable, the
+// NewReader creates a new Reader for use in Unilog. Once shutdown becomes readable, the
 // returned Reader will start reading from the underlying Reader one
 // byte at a time until newline, and then start returning EOF.
-func NewUnilogReader(in io.Reader, shutdown <-chan struct{}) io.Reader {
-	r := &UnilogReader{inner: in}
+func NewReader(in io.Reader, shutdown <-chan struct{}) io.Reader {
+	r := &Reader{inner: in}
 	go func() {
 		<-shutdown
 		r.mtx.Lock()
@@ -31,13 +31,13 @@ func NewUnilogReader(in io.Reader, shutdown <-chan struct{}) io.Reader {
 	return r
 }
 
-func (r *UnilogReader) isShuttingDown() bool {
+func (r *Reader) isShuttingDown() bool {
 	r.mtx.Lock()
 	defer r.mtx.Unlock()
 	return r.shuttingDown
 }
 
-func (r *UnilogReader) Read(buf []byte) (int, error) {
+func (r *Reader) Read(buf []byte) (int, error) {
 	if r.nl && r.isShuttingDown() {
 		return 0, io.EOF
 	}

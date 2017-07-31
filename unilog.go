@@ -23,8 +23,9 @@ import (
 // hold the argument passed in with "-statstags"
 var statstags string
 
-// A filter to be applied to log lines prior to prefixing them
-// with a timestamp and logging them.
+// A Filter is a function that takes in a log line and applies
+// a transformation prior to prefixing them with a
+// timestamp and logging them.
 type Filter func(string) string
 
 // Unilog represents a unilog process. unilog is intended to be used
@@ -140,13 +141,14 @@ const (
 	DefaultBuffer = 1 << 12
 )
 
+// Stats is Unilog's statsd client.
 var Stats *statsd.Client
 
 func readlines(in io.Reader, bufsize int, shutdown chan struct{}) (<-chan string, <-chan error) {
 	linec := make(chan string, bufsize)
 	errc := make(chan error, 1)
 
-	u := NewUnilogReader(in, shutdown)
+	u := NewReader(in, shutdown)
 	r := bufio.NewReader(u)
 
 	go func() {
@@ -317,6 +319,7 @@ func (u *Unilog) handleError(action string, e error) {
 	u.b.count++
 }
 
+// Main sets up the Unilog instance and then calls Run.
 func (u *Unilog) Main() {
 	u.fillDefaults()
 
