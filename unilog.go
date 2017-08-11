@@ -63,6 +63,10 @@ type Unilog struct {
 	Verbose bool
 	Debug   bool
 
+	// Whether to prefix each log line with the current time. Defaults to
+	// true, and can be overridden by the flag `--add-timestamps`.
+	addTimestamps *bool
+
 	lines     <-chan string
 	errs      <-chan error
 	sigReopen <-chan os.Signal
@@ -112,6 +116,7 @@ func (u *Unilog) addFlags() {
 	flag.StringVar(&u.StatsdAddress, "statsdaddress", "127.0.0.1:8200", "Address to send statsd metrics to")
 	flag.StringVar(&clevels.AusterityFile, "austerityfile", clevels.AusterityFile, "(optional) Location of file to read austerity level from")
 	stringFlag(&statstags, "statstags", "s", "", `(optional) tags to include with all statsd metrics (e.g. "foo:bar,baz:quz")`)
+	u.addTimestamps = flag.Bool("add-timestamps", true, "Add timestamps to each line before flushing.")
 }
 
 var emailTemplate = template.Must(template.New("email").Parse(`From: {{.From}}
@@ -199,6 +204,9 @@ func (u *Unilog) format(line string) string {
 		if filter != nil {
 			line = filter(line)
 		}
+	}
+	if u.addTimestamps != nil && !*u.addTimestamps {
+		return line + "\n"
 	}
 	return fmt.Sprintf("[%s] %s\n", time.Now().Format("2006-01-02 15:04:05.000000"), line)
 }
