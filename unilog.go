@@ -59,9 +59,10 @@ type Unilog struct {
 	// in-kernel pipe buffer, sized 64kb on Linux.
 	BufferLines int
 
-	Name    string
-	Verbose bool
-	Debug   bool
+	Name        string
+	Verbose     bool
+	Debug       bool
+	NoTimestamp bool
 
 	lines     <-chan string
 	errs      <-chan error
@@ -106,6 +107,7 @@ func (u *Unilog) addFlags() {
 	stringFlag(&u.Name, "name", "a", "", "Name of logged program")
 	boolFlag(&u.Verbose, "verbose", "v", false, "Echo lines to stdout")
 	boolFlag(&u.Debug, "debug", "d", false, "Print debug messages")
+	boolFlag(&u.NoTimestamp, "notimestamp", "n", false, "Don't append timestamps to lines")
 	flag.StringVar(&u.MailFrom, "mailfrom", u.MailFrom, "Address to send error emails from")
 	flag.StringVar(&u.MailTo, "mailto", u.MailTo, "Address to send error emails to")
 	flag.StringVar(&u.SentryDSN, "sentrydsn", u.SentryDSN, "Sentry DSN to send errors to")
@@ -200,7 +202,12 @@ func (u *Unilog) format(line string) string {
 			line = filter(line)
 		}
 	}
-	return fmt.Sprintf("[%s] %s\n", time.Now().Format("2006-01-02 15:04:05.000000"), line)
+
+	if u.NoTimestamp {
+		return fmt.Sprintf("%s\n", line)
+	} else {
+		return fmt.Sprintf("[%s] %s\n", time.Now().Format("2006-01-02 15:04:05.000000"), line)
+	}
 }
 
 func (u *Unilog) logLine(line string) {
