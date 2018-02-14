@@ -147,6 +147,16 @@ func ParseLevel(r io.Reader) (AusterityLevel, error) {
 	return DefaultAusterity, InvalidAusterityLevel
 }
 
+func reportLoadStatus(err error) {
+	if Stats != nil {
+		metric := 0
+		if err != nil {
+			metric = 1
+		}
+		Stats.Count("unilog.errors.load_level", int64(metric), nil, 1)
+	}
+}
+
 func SendSystemAusterityLevel() {
 	// This is the cached austerity level
 	// that will be sent anytime Unilog requests the austerity level,
@@ -164,10 +174,8 @@ func SendSystemAusterityLevel() {
 		c := time.Tick(CacheInterval)
 		for _ = range c {
 			l, err := LoadLevel()
+			reportLoadStatus(err)
 			if err != nil {
-				if Stats != nil {
-					Stats.Count("unilog.errors.load_level", 1, nil, 1)
-				}
 				continue
 			}
 			updatedLevel <- l
