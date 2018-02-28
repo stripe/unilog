@@ -1,4 +1,4 @@
-package unilog
+package logger
 
 import (
 	"bufio"
@@ -17,6 +17,7 @@ import (
 	"github.com/getsentry/raven-go"
 
 	"github.com/stripe/unilog/clevels"
+	"github.com/stripe/unilog/reader"
 	flag "launchpad.net/gnuflag"
 )
 
@@ -148,7 +149,7 @@ func readlines(in io.Reader, bufsize int, shutdown chan struct{}) (<-chan string
 	linec := make(chan string, bufsize)
 	errc := make(chan error, 1)
 
-	u := NewReader(in, shutdown)
+	u := reader.NewReader(in, shutdown)
 	r := bufio.NewReader(u)
 
 	go func() {

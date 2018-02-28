@@ -1,4 +1,4 @@
-package unilog
+package logger
 
 import (
 	"os"

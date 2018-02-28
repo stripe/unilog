@@ -1,15 +1,14 @@
-package main
+package filters
 
 import (
 	"fmt"
 	"math"
 	"math/rand"
 
-	"github.com/stripe/unilog"
 	"github.com/stripe/unilog/clevels"
 )
 
-func austerityFilter(line string) string {
+func AusterityFilter(line string) string {
 	criticalityLevel := clevels.Criticality(line)
 	austerityLevel := <-clevels.SystemAusterityLevel
 	fmt.Printf("austerity level is %s\n", austerityLevel)
@@ -36,16 +35,4 @@ func samplingRate(austerityLevel, criticalityLevel clevels.AusterityLevel) float
 	samplingRate := math.Pow(10, float64(-levelDiff))
 
 	return samplingRate
-}
-
-func main() {
-
-	go clevels.SendSystemAusterityLevel()
-
-	u := &unilog.Unilog{
-		Filters: []unilog.Filter{
-			unilog.Filter(austerityFilter),
-		},
-	}
-	u.Main()
 }
