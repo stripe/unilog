@@ -4,11 +4,19 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"sync"
 
 	"github.com/stripe/unilog/clevels"
 )
 
+var startSystemAusterityLevel sync.Once
+
 func AusterityFilter(line string) string {
+	// Start austerity level loop sender in goroutine just once
+	startSystemAusterityLevel.Do(func() {
+		go clevels.SendSystemAusterityLevel()
+	})
+
 	criticalityLevel := clevels.Criticality(line)
 	austerityLevel := <-clevels.SystemAusterityLevel
 	fmt.Printf("austerity level is %s\n", austerityLevel)
