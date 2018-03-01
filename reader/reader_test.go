@@ -1,4 +1,4 @@
-package unilog
+package reader
 
 import (
 	"bufio"
