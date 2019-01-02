@@ -16,6 +16,8 @@ import (
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/getsentry/raven-go"
 
+	encjson "encoding/json"
+
 	"github.com/stripe/unilog/clevels"
 	"github.com/stripe/unilog/json"
 	"github.com/stripe/unilog/reader"
@@ -67,7 +69,8 @@ type Unilog struct {
 	BufferLines int
 	// Whether unilog expects log line input as JSON or as plain
 	// text.
-	JSON bool
+	JSON        bool
+	jsonEncoder *encjson.Encoder
 
 	Name    string
 	Verbose bool
@@ -201,6 +204,10 @@ func (u *Unilog) reopen() error {
 		u.file = nil
 		return e
 	}
+
+	if u.JSON {
+		u.jsonEncoder = encjson.NewEncoder(u.file)
+	}
 	return nil
 }
 
@@ -243,6 +250,39 @@ func (u *Unilog) run() {
 	}
 }
 
+func (u *Unilog) logJSON(jsonLine string) {
+	var line json.LogLine
+	err := encjson.Unmarshal(([]byte)(jsonLine), &line)
+	if err != nil {
+		// It won't parse, treat it as yolo text:
+		u.logLine(jsonLine)
+	}
+
+	if u.Verbose {
+		defer fmt.Printf("%v\n", line)
+	}
+	for _, filter := range u.Filters {
+		if filter != nil {
+			filter.FilterJSON(&line)
+		}
+	}
+
+	var e error
+	if u.file == nil {
+		e = u.reopen()
+	}
+	if e != nil {
+		u.handleError("reopen_file", e)
+		return
+	}
+	e = u.jsonEncoder.Encode(line)
+	if e != nil {
+		u.handleError("write_to_log", e)
+	} else {
+		u.b.broken = false
+	}
+}
+
 // "tick" is Unilog's event loop
 // returns true if Unilog should keep running,
 // and false if it should stop.
@@ -271,7 +311,11 @@ func (u *Unilog) tick() bool {
 		if !ok {
 			return false
 		}
-		u.logLine(line)
+		if !u.JSON {
+			u.logLine(line)
+		} else {
+			u.logJSON(line)
+		}
 	}
 	return true
 }
