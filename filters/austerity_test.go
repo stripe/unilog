@@ -52,3 +52,7 @@ func TestAusterityFilter(t *testing.T) {
 	assert.Equal(t, 8983, dropped)
 	kill <- struct{}{}
 }
+
+func TestAusterityJSON(t *testing.T) {
+
+}

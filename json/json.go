@@ -20,7 +20,9 @@
 //    {"ts":"2006-01-02T15:04:05.999Z07:00","message":"hi there"}
 package json
 
-import "time"
+import (
+	"time"
+)
 
 // JSONLogLine is a representation of a generic log line that unilog
 // can destructure.
@@ -37,10 +39,12 @@ func (j *LogLine) TS() time.Time {
 			return time.Now()
 		}
 		// We have a ts, let's try and parse it:
-		if ts, err := time.Parse(time.RFC3339Nano, tsS); err == nil {
+		ts, err := time.Parse(time.RFC3339Nano, tsS)
+		if err == nil {
 			return ts
 		}
-		if ts, err := time.Parse(time.RFC1123Z, tsS); err == nil {
+		ts, err = time.Parse(time.RFC1123Z, tsS)
+		if err == nil {
 			return ts
 		}
 	}
