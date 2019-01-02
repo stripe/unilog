@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"github.com/stripe/unilog/clevels"
-	"github.com/stripe/unilog/logger"
+	"github.com/stripe/unilog/json"
 )
 
 var startSystemAusterityLevel sync.Once
@@ -14,27 +14,33 @@ var startSystemAusterityLevel sync.Once
 // AusterityFilter applies system-wide austerity levels to a log line. If austerity levels indicate a line should be shedded, the
 type AusterityFilter struct{}
 
-func (a AusterityFilter) setup() {
+// Setup starts the parser for the system austerity level. It is
+// exported so that tests can call it with testing=true in test setup,
+// which will disable sending the austerity level (and also appease
+// the race detector).
+func (a AusterityFilter) Setup(testing bool) {
 	// Start austerity level loop sender in goroutine just once
 	startSystemAusterityLevel.Do(func() {
-		go clevels.SendSystemAusterityLevel()
+		if !testing {
+			go clevels.SendSystemAusterityLevel()
+		}
 	})
 }
 
 func (a AusterityFilter) FilterLine(line string) string {
-	a.setup()
+	a.Setup(false)
 	if shouldShed(clevels.Criticality(line)) {
 		return "(shedded)"
 	}
 	return line
 }
 
-func (a AusterityFilter) FilterJSON(line *logger.JSONLogLine) {
-	a.setup()
-	if shouldShed(clevels.JSONCriticality(line)) {
+func (a AusterityFilter) FilterJSON(line *json.LogLine) {
+	a.Setup(false)
+	if shouldShed(clevels.JSONCriticality(*line)) {
 		// clear the line:
 		newLine := map[string]interface{}{}
-		if ts, ok := line["ts"]; ok {
+		if ts, ok := (*line)["ts"]; ok {
 			newLine["ts"] = ts
 		}
 		newLine["shedded"] = true

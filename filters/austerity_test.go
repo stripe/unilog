@@ -13,7 +13,8 @@ import (
 func TestAusterityFilter(t *testing.T) {
 	// Make sure SendSystemAusterityLevel is called before we override
 	// the underlying channel below
-	AusterityFilter("")
+	a := AusterityFilter{}
+	a.Setup(true)
 
 	clevels.SystemAusterityLevel = make(chan clevels.AusterityLevel)
 
@@ -40,7 +41,7 @@ func TestAusterityFilter(t *testing.T) {
 
 	// now sample out the line a bunch!
 	for i := 0; i < 10000; i++ {
-		outputtedLine = AusterityFilter(line)
+		outputtedLine = a.FilterLine(line)
 		if strings.Contains(outputtedLine, "(shedded)") {
 			dropped++
 		}

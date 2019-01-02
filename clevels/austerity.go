@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
-	"github.com/stripe/unilog/logger"
+	"github.com/stripe/unilog/json"
 )
 
 var Stats *statsd.Client
@@ -128,7 +128,7 @@ func Criticality(line string) AusterityLevel {
 	return DefaultCriticality
 }
 
-func JSONCriticality(line *logger.JSONLogLine) AusterityLevel {
+func JSONCriticality(line json.LogLine) AusterityLevel {
 	// Never drop JSON log lines declaring themselves canonical:
 	if canonicalI, ok := line["canonical"]; ok {
 		if canonical, ok := canonicalI.(bool); ok && canonical {
