@@ -1,34 +1,65 @@
 package filters
 
 import (
-	"fmt"
 	"math"
 	"math/rand"
 	"sync"
 
 	"github.com/stripe/unilog/clevels"
+	"github.com/stripe/unilog/json"
 )
 
 var startSystemAusterityLevel sync.Once
 
-func AusterityFilter(line string) string {
+// AusterityFilter applies system-wide austerity levels to a log
+// line. If austerity levels indicate a line should be shedded, the
+// like's contents will replaced with "(shedded)" in text mode and the
+// "shedded"=true attribude in JSON mode.
+//
+// Shedding log lines retains their time stamps.
+type AusterityFilter struct{}
+
+// Setup starts the parser for the system austerity level. It is
+// exported so that tests can call it with testing=true in test setup,
+// which will disable sending the austerity level (and also appease
+// the race detector).
+func (a AusterityFilter) Setup(testing bool) {
 	// Start austerity level loop sender in goroutine just once
 	startSystemAusterityLevel.Do(func() {
-		go clevels.SendSystemAusterityLevel()
+		if !testing {
+			go clevels.SendSystemAusterityLevel()
+		}
 	})
+}
 
-	criticalityLevel := clevels.Criticality(line)
-	austerityLevel := <-clevels.SystemAusterityLevel
-	fmt.Printf("austerity level is %s\n", austerityLevel)
-
-	if criticalityLevel >= austerityLevel {
-		return line
-	}
-
-	if rand.Float64() > samplingRate(austerityLevel, criticalityLevel) {
+func (a AusterityFilter) FilterLine(line string) string {
+	a.Setup(false)
+	if shouldShed(clevels.Criticality(line)) {
 		return "(shedded)"
 	}
 	return line
+}
+
+func (a AusterityFilter) FilterJSON(line *json.LogLine) {
+	a.Setup(false)
+	if shouldShed(clevels.JSONCriticality(*line)) {
+		// clear the line:
+		newLine := map[string]interface{}{}
+		if ts, ok := (*line)["ts"]; ok {
+			newLine["ts"] = ts
+		}
+		newLine["shedded"] = true
+		*line = newLine
+	}
+}
+
+func shouldShed(criticalityLevel clevels.AusterityLevel) bool {
+	austerityLevel := <-clevels.SystemAusterityLevel
+	if criticalityLevel >= austerityLevel {
+		return false
+	}
+
+	return rand.Float64() > samplingRate(austerityLevel, criticalityLevel)
 }
 
 // samplingRate calculates the rate at which loglines will be sampled for the

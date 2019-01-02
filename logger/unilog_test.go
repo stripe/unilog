@@ -6,6 +6,8 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+
+	"github.com/stripe/unilog/json"
 )
 
 var shakespeare = []string{
@@ -52,24 +54,38 @@ func TestReadlinesWithLongLines(t *testing.T) {
 	}
 }
 
+// double the first two instances of the character "e"
+type doubleEFilter struct{}
+
+func (ee *doubleEFilter) FilterLine(line string) string {
+	return strings.Replace(line, "e", "ee", 2)
+}
+
+func (ee *doubleEFilter) FilterJSON(line *json.LogLine) {
+	msg := (*line)["message"].(string)
+	(*line)["message"] = strings.Replace(msg, "e", "ee", 2)
+}
+
+type isToAintFilter struct{}
+
+func (ee *isToAintFilter) FilterLine(line string) string {
+	return strings.Replace(line, "is", "ain't", -1)
+}
+
+func (ee *isToAintFilter) FilterJSON(line *json.LogLine) {
+	msg := (*line)["message"].(string)
+	(*line)["message"] = strings.Replace(msg, "is", "ain't", -1)
+}
+
 func TestFilterFunction(t *testing.T) {
 	var input = shakespeare[0]
 	const expected = "To bee, or not to bee, that ain't the question-\n"
 
 	u := &Unilog{}
 
-	// double the first two instances of the character "e"
-	var doubleEFilter = func(s string) string {
-		return strings.Replace(s, "e", "ee", 2)
-	}
-
-	var isToAintFilter = func(s string) string {
-		return strings.Replace(s, "is", "ain't", -1)
-	}
-
 	u.Filters = []Filter{
-		Filter(doubleEFilter),
-		Filter(isToAintFilter),
+		Filter(&doubleEFilter{}),
+		Filter(&isToAintFilter{}),
 	}
 
 	result := u.format(input)
