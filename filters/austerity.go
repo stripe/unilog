@@ -1,34 +1,54 @@
 package filters
 
 import (
-	"fmt"
 	"math"
 	"math/rand"
 	"sync"
 
 	"github.com/stripe/unilog/clevels"
+	"github.com/stripe/unilog/logger"
 )
 
 var startSystemAusterityLevel sync.Once
 
-func AusterityFilter(line string) string {
+// AusterityFilter applies system-wide austerity levels to a log line. If austerity levels indicate a line should be shedded, the
+type AusterityFilter struct{}
+
+func (a AusterityFilter) setup() {
 	// Start austerity level loop sender in goroutine just once
 	startSystemAusterityLevel.Do(func() {
 		go clevels.SendSystemAusterityLevel()
 	})
+}
 
-	criticalityLevel := clevels.Criticality(line)
-	austerityLevel := <-clevels.SystemAusterityLevel
-	fmt.Printf("austerity level is %s\n", austerityLevel)
-
-	if criticalityLevel >= austerityLevel {
-		return line
-	}
-
-	if rand.Float64() > samplingRate(austerityLevel, criticalityLevel) {
+func (a AusterityFilter) FilterLine(line string) string {
+	a.setup()
+	if shouldShed(clevels.Criticality(line)) {
 		return "(shedded)"
 	}
 	return line
+}
+
+func (a AusterityFilter) FilterJSON(line *logger.JSONLogLine) {
+	a.setup()
+	if shouldShed(clevels.JSONCriticality(line)) {
+		// clear the line:
+		newLine := map[string]interface{}{}
+		if ts, ok := line["ts"]; ok {
+			newLine["ts"] = ts
+		}
+		newLine["shedded"] = true
+		*line = newLine
+	}
+}
+
+func shouldShed(criticalityLevel clevels.AusterityLevel) bool {
+	austerityLevel := <-clevels.SystemAusterityLevel
+	if criticalityLevel >= austerityLevel {
+		return false
+	}
+
+	return rand.Float64() > samplingRate(austerityLevel, criticalityLevel)
 }
 
 // samplingRate calculates the rate at which loglines will be sampled for the

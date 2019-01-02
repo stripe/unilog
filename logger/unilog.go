@@ -24,10 +24,36 @@ import (
 // hold the argument passed in with "-statstags"
 var statstags string
 
-// A Filter is a function that takes in a log line and applies
-// a transformation prior to prefixing them with a
-// timestamp and logging them.
-type Filter func(string) string
+// JSONLogLine is a representation of a generic log line that unilog
+// can destructure.
+type JSONLogLine map[string]interface{}
+
+// TS returns the timestamp of a log line; if a timestamp is set, TS
+// will attempt to parse it (first according to time.RFC3339Nano and
+// then time.RFC1123Z); if no timestamp is present, or the present
+// time stamp can not be parsed, TS returns the current time.
+func (j *JSONLogLine) TS() time.Time {
+	if tsS, ok := j["ts"]; ok {
+		// We have a ts, let's try and parse it:
+		if ts, err := time.Parse(time.RFC3339Nano, tsS); err == nil {
+			return ts
+		}
+		if ts, err := time.Parse(time.RFC1123Z, tsS); err == nil {
+			return ts
+		}
+	}
+	return time.Now()
+}
+
+// Filter takes in a log line and applies a transformation prior to
+// prefixing them with a timestamp and logging them. Since Unilog can
+// operate on JSON or on string content, there are two methods that a
+// filter must implement (so unilog can cut down on time spent parsing
+// the log line).
+type Filter interface {
+	FilterLine(line string) string
+	FilterJSON(line *JSONLogLine)
+}
 
 // Unilog represents a unilog process. unilog is intended to be used
 // as a standalone application, but is exported as a package to allow
@@ -59,6 +85,9 @@ type Unilog struct {
 	// to unilog over a pipe, the kernel also maintains an
 	// in-kernel pipe buffer, sized 64kb on Linux.
 	BufferLines int
+	// Whether unilog expects log line input as JSON or as plain
+	// text.
+	JSON bool
 
 	Name    string
 	Verbose bool
