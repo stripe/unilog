@@ -21,12 +21,17 @@
 package json
 
 import (
+	"bytes"
+	"encoding/json"
+	"log"
 	"time"
 )
 
 // JSONLogLine is a representation of a generic log line that unilog
 // can destructure.
 type LogLine map[string]interface{}
+
+const defaultTimeFormat = time.RFC3339Nano
 
 // TS returns the timestamp of a log line; if a timestamp is set, TS
 // will attempt to parse it (first according to time.RFC3339Nano and
@@ -49,4 +54,35 @@ func (j *LogLine) TS() time.Time {
 		}
 	}
 	return time.Now()
+}
+
+// MarshalJSON writes the log line in a specific format that's
+// optimized for splunk ingestion: First, it writes the timestamp,
+// followed by all the other fields.
+func (j LogLine) MarshalJSON() ([]byte, error) {
+	b := bytes.NewBuffer(([]byte)("{"))
+	b.Grow(len(j) * 15) // very naive assumption: average key/value pair is 15 bytes long.
+	b.WriteString(`"ts":"`)
+	ts := j.TS().Format(defaultTimeFormat)
+	b.WriteString(ts)
+	b.WriteString(`"`)
+	for k, v := range j {
+		if k == "ts" {
+			continue
+		}
+		b.WriteString(",")
+		kJSON, err := json.Marshal(k)
+		if err != nil {
+			log.Fatal("TODO: what(k)", k, err)
+		}
+		b.Write(kJSON)
+		vJSON, err := json.Marshal(v)
+		if err != nil {
+			log.Fatal("TODO: what(v)", v, err)
+		}
+		b.WriteString(":")
+		b.Write(vJSON)
+	}
+	b.WriteString("}")
+	return b.Bytes(), nil
 }

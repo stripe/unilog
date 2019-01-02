@@ -1,11 +1,14 @@
 package json
 
 import (
+	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTS(t *testing.T) {
@@ -40,6 +43,34 @@ func TestTS(t *testing.T) {
 					"timestamp %v should be sometime after the start of the test %v",
 					nowish, ts)
 			}
+		})
+	}
+}
+
+func TestMarshal(t *testing.T) {
+	tests := []struct {
+		in string
+	}{
+		{`{"msg":"hi", "ts":"2006-01-02T15:04:05.999999999Z"}`},
+		{`{"msg":"hi"}`},
+		{`{"what":"no",    "teletubbies":["boo", "lala"]}`},
+	}
+	for _, elt := range tests {
+		test := elt
+		t.Run(test.in, func(t *testing.T) {
+			t.Parallel()
+			var line LogLine
+			err := json.Unmarshal(([]byte)(test.in), &line)
+			require.NoError(t, err)
+
+			out, err := json.Marshal(line)
+			outstr := (string)(out)
+			require.NoError(t, err)
+			assert.True(t, strings.HasPrefix(outstr, `{"ts":"`), outstr)
+
+			var roundtrip LogLine
+			err = json.Unmarshal(out, &roundtrip)
+			assert.NoError(t, err)
 		})
 	}
 }
