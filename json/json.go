@@ -9,7 +9,10 @@
 // Unilog recognizes three fields in that object that are considered
 // special (all are optional):
 //
-//    - ts: The time stamp of an event
+//    - timestamp: The time stamp of an event. Unilog understands both
+//      epoch timestamps as float, or RFC3339Nano-formatted
+//      timestamps. The timestamp will be normalized to
+//      nanosecond-resolution float "timestamp" fields.
 //    - canonical: Identifies the log event as "canonical", i.e. the
 //      most important line a service can log. It is considered to have
 //      the highest criticality level.
@@ -17,7 +20,8 @@
 //
 // Example
 //
-//    {"ts":"2006-01-02T15:04:05.999Z07:00","message":"hi there"}
+//    {"timestamp":"2006-01-02T15:04:05.999Z07:00","message":"hi there"}
+//    {"timestamp":"2006-01-02T15:04:05.999Z07:00","message":"hi there"}
 package json
 
 import (
@@ -31,43 +35,67 @@ import (
 // can destructure.
 type LogLine map[string]interface{}
 
-const defaultTimeFormat = time.RFC3339Nano
+const timestampField = "timestamp"
+
+var tsFields = []string{
+	timestampField,
+	"ts",
+}
 
 // TS returns the timestamp of a log line; if a timestamp is set, TS
 // will attempt to parse it (first according to time.RFC3339Nano and
 // then time.RFC1123Z); if no timestamp is present, or the present
 // time stamp can not be parsed, TS returns the current time.
 func (j *LogLine) TS() time.Time {
-	if tsS, ok := (*j)["ts"]; ok {
-		tsS, ok := tsS.(string)
-		if !ok {
-			return time.Now()
-		}
-		// We have a ts, let's try and parse it:
-		ts, err := time.Parse(time.RFC3339Nano, tsS)
-		if err == nil {
-			return ts
-		}
-		ts, err = time.Parse(time.RFC1123Z, tsS)
-		if err == nil {
-			return ts
+	for _, tsField := range tsFields {
+		if tsS, ok := (*j)[tsField]; ok {
+			// We support two different kinds of
+			// timestamps here: UNIX epoch timestamps as
+			// floats, and RFC3339Nano for strings:
+			switch tsV := tsS.(type) {
+			case string:
+				ts, err := time.Parse(time.RFC3339Nano, tsV)
+				if err == nil {
+					return ts
+				}
+				ts, err = time.Parse(time.RFC1123Z, tsV)
+				if err == nil {
+					return ts
+				}
+			case float64:
+				epochInt := int64(tsV)
+				nsec := int64((tsV - float64(epochInt)) * 1000000000)
+				return time.Unix(epochInt, nsec)
+			default:
+				return time.Now()
+			}
 		}
 	}
 	return time.Now()
 }
 
+// Holds the starting `{`, timestamp field name and field separator
+// prefix for the timestamp value.
+var encodePrefix []byte
+
+func init() {
+	encodePrefix = []byte(fmt.Sprintf(`{"%s":`, timestampField))
+}
+
 // MarshalJSON writes the log line in a specific format that's
-// optimized for splunk ingestion: First, it writes the timestamp,
-// followed by all the other fields.
+// optimized for splunk ingestion: First, it writes the timestamp as a
+// float UNIX epoch, followed by all the other fields.
 func (j LogLine) MarshalJSON() ([]byte, error) {
-	b := bytes.NewBuffer(([]byte)("{"))
+	b := bytes.NewBuffer(encodePrefix)
 	b.Grow(len(j) * 15) // very naive assumption: average key/value pair is 15 bytes long.
-	b.WriteString(`"ts":"`)
-	ts := j.TS().Format(defaultTimeFormat)
-	b.WriteString(ts)
-	b.WriteString(`"`)
+
+	nsepoch := j.TS().UnixNano()
+	sec := time.Duration(nsepoch) / time.Second
+	usec := (time.Duration(nsepoch) - (sec * time.Second)) / time.Nanosecond
+	fmt.Fprintf(b, "%d.%09d", sec, usec)
+
 	for k, v := range j {
-		if k == "ts" {
+		if k == timestampField {
 			continue
 		}
 		b.WriteString(",")

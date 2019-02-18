@@ -13,31 +13,43 @@ import (
 
 func TestTS(t *testing.T) {
 	tests := []struct {
-		inputTS  string
-		now      bool
-		outputTS string
+		inputTS interface{}
+		now     bool
+		epochS  int64
+		epochNS int64
 	}{
-		{"2006-01-02T15:04:05.999999999Z", false, "2006-01-02T15:04:05.999999999Z"},
-		{"2006-01-02T15:04:05Z", false, "2006-01-02T15:04:05Z"},
-		{"Mon, 02 Jan 2006 15:04:05 -0700", false, "2006-01-02T15:04:05Z"},
-		{"gibberish", true, ""},
+		{"2006-01-02T15:04:05.999999999Z", false, 1136214245, 999999999},
+		{"2006-01-02T15:04:05Z", false, 1136214245, 0},
+		{"Mon, 02 Jan 2006 15:04:05 -0700", false, 1136239445, 0},
+		{"gibberish", true, 0, 0},
+		{1550493962.283873, false, 1550493962, 283873010},
 	}
 	nowish := time.Now()
-	layout := "2006-01-02T15:04:05.999999999Z"
 	for _, elt := range tests {
 		test := elt
-		name := fmt.Sprintf("%s", elt.inputTS)
+		name := fmt.Sprintf("%v", elt.inputTS)
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			line := LogLine{"ts": test.inputTS}
+			line := LogLine{"timestamp": test.inputTS}
 			ts := line.TS()
 			if !test.now {
 				assert.False(t, nowish.Before(ts),
 					"timestamp %v should be an actual timestamp, not time.Now()",
 					nowish,
 				)
-				out := ts.Format(layout)
-				assert.Equal(t, test.outputTS, out)
+				epoch := time.Unix(test.epochS, test.epochNS)
+				assert.WithinDuration(t, epoch, ts, time.Microsecond)
+
+				// Try round-tripping the TS through Marshal:
+				b, err := json.Marshal(&line)
+				require.NoError(t, err)
+
+				var roundtrip LogLine
+				err = json.Unmarshal(b, &roundtrip)
+				require.NoError(t, err)
+
+				t.Logf("log line: %s", string(b))
+				assert.WithinDuration(t, epoch, roundtrip.TS(), time.Microsecond)
 			} else {
 				assert.True(t, nowish.Before(ts),
 					"timestamp %v should be sometime after the start of the test %v",
@@ -51,7 +63,7 @@ func TestMarshal(t *testing.T) {
 	tests := []struct {
 		in string
 	}{
-		{`{"msg":"hi", "ts":"2006-01-02T15:04:05.999999999Z"}`},
+		{`{"msg":"hi", "timestamp":"2006-01-02T15:04:05.999999999Z"}`},
 		{`{"msg":"hi"}`},
 		{`{"what":"no",    "teletubbies":["boo", "lala"]}`},
 	}
@@ -66,7 +78,7 @@ func TestMarshal(t *testing.T) {
 			out, err := json.Marshal(line)
 			outstr := (string)(out)
 			require.NoError(t, err)
-			assert.True(t, strings.HasPrefix(outstr, `{"ts":"`), outstr)
+			assert.True(t, strings.HasPrefix(outstr, `{"timestamp":`), outstr)
 
 			var roundtrip LogLine
 			err = json.Unmarshal(out, &roundtrip)
@@ -90,7 +102,7 @@ func TestMarshalBrokenFields(t *testing.T) {
 	out, err := json.Marshal(line)
 	outstr := (string)(out)
 	require.NoError(t, err)
-	assert.True(t, strings.HasPrefix(outstr, `{"ts":"`), outstr)
+	assert.True(t, strings.HasPrefix(outstr, `{"timestamp":`), outstr)
 
 	t.Log(outstr)
 
