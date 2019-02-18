@@ -74,3 +74,29 @@ func TestMarshal(t *testing.T) {
 		})
 	}
 }
+
+type unwritable struct{}
+
+func (j unwritable) MarshalJSON() ([]byte, error) {
+	return nil, fmt.Errorf("I'm a bobby tables \" error")
+}
+
+func TestMarshalBrokenFields(t *testing.T) {
+	line := LogLine{
+		"this_is_broken": unwritable{},
+		"this_works":     "hi there",
+	}
+
+	out, err := json.Marshal(line)
+	outstr := (string)(out)
+	require.NoError(t, err)
+	assert.True(t, strings.HasPrefix(outstr, `{"ts":"`), outstr)
+
+	t.Log(outstr)
+
+	var roundtrip LogLine
+	err = json.Unmarshal(out, &roundtrip)
+	assert.NoError(t, err)
+	assert.Contains(t, roundtrip["this_is_broken"], "[unilog json marshal error:")
+	assert.Equal(t, "hi there", roundtrip["this_works"])
+}

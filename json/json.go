@@ -23,7 +23,7 @@ package json
 import (
 	"bytes"
 	"encoding/json"
-	"log"
+	"fmt"
 	"time"
 )
 
@@ -71,15 +71,12 @@ func (j LogLine) MarshalJSON() ([]byte, error) {
 			continue
 		}
 		b.WriteString(",")
-		kJSON, err := json.Marshal(k)
-		if err != nil {
-			log.Fatal("TODO: what(k)", k, err)
-		}
-		b.Write(kJSON)
+		kJSON, _ := json.Marshal(k)
 		vJSON, err := json.Marshal(v)
 		if err != nil {
-			log.Fatal("TODO: what(v)", v, err)
+			vJSON, _ = json.Marshal(fmt.Sprintf(`[unilog json marshal error: %v]`, err))
 		}
+		b.Write(kJSON)
 		b.WriteString(":")
 		b.Write(vJSON)
 	}
