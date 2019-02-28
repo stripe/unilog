@@ -31,7 +31,7 @@ func TestTS(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			line := LogLine{"timestamp": test.inputTS}
-			ts := line.TS()
+			ts := line.Timestamp()
 			if !test.now {
 				assert.False(t, nowish.Before(ts),
 					"timestamp %v should be an actual timestamp, not time.Now()",
@@ -49,7 +49,7 @@ func TestTS(t *testing.T) {
 				require.NoError(t, err)
 
 				t.Logf("log line: %s", string(b))
-				assert.WithinDuration(t, epoch, roundtrip.TS(), time.Microsecond)
+				assert.WithinDuration(t, epoch, roundtrip.Timestamp(), time.Microsecond)
 			} else {
 				assert.True(t, nowish.Before(ts),
 					"timestamp %v should be sometime after the start of the test %v",

@@ -42,11 +42,13 @@ var tsFields = []string{
 	"ts",
 }
 
-// TS returns the timestamp of a log line; if a timestamp is set, TS
-// will attempt to parse it (first according to time.RFC3339Nano and
-// then time.RFC1123Z); if no timestamp is present, or the present
-// time stamp can not be parsed, TS returns the current time.
-func (j *LogLine) TS() time.Time {
+// Timestamp returns the timestamp of a log line; if a timestamp is
+// set on the line, Timestamp will attempt to interpret it
+// (integers/floats as UNIX epochs with fractional sub-second
+// components, and strings first according to time.RFC3339Nano and
+// then time.RFC1123Z). If no timestamp is present, or the present
+// time stamp can not be parsed, Timestamp returns the current time.
+func (j *LogLine) Timestamp() time.Time {
 	for _, tsField := range tsFields {
 		if tsS, ok := (*j)[tsField]; ok {
 			// We support two different kinds of
@@ -89,7 +91,7 @@ func (j LogLine) MarshalJSON() ([]byte, error) {
 	b := bytes.NewBuffer(encodePrefix)
 	b.Grow(len(j) * 15) // very naive assumption: average key/value pair is 15 bytes long.
 
-	nsepoch := j.TS().UnixNano()
+	nsepoch := j.Timestamp().UnixNano()
 	sec := time.Duration(nsepoch) / time.Second
 	usec := (time.Duration(nsepoch) - (sec * time.Second)) / time.Nanosecond
 	fmt.Fprintf(b, "%d.%09d", sec, usec)
