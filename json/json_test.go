@@ -13,16 +13,17 @@ import (
 
 func TestTS(t *testing.T) {
 	tests := []struct {
-		inputTS interface{}
+		inputTS string
 		now     bool
 		epochS  int64
 		epochNS int64
 	}{
-		{"2006-01-02T15:04:05.999999999Z", false, 1136214245, 999999999},
-		{"2006-01-02T15:04:05Z", false, 1136214245, 0},
-		{"Mon, 02 Jan 2006 15:04:05 -0700", false, 1136239445, 0},
-		{"gibberish", true, 0, 0},
-		{1550493962.283873, false, 1550493962, 283873010},
+		{`"2006-01-02T15:04:05.999999999Z"`, false, 1136214245, 999999999},
+		{`"2006-01-02T15:04:05Z"`, false, 1136214245, 0},
+		{`"Mon, 02 Jan 2006 15:04:05 -0700"`, false, 1136239445, 0},
+		{`"gibberish"`, true, 0, 0},
+		{`1550493962.283873`, false, 1550493962, 283873010},
+		{`1550493962`, false, 1550493962, 0},
 	}
 	nowish := time.Now()
 	for _, elt := range tests {
@@ -30,7 +31,11 @@ func TestTS(t *testing.T) {
 		name := fmt.Sprintf("%v", elt.inputTS)
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			line := LogLine{"timestamp": test.inputTS}
+			jsonText := fmt.Sprintf(`{"timestamp":%s,"foo":"bar"}`, test.inputTS)
+			var line LogLine
+			err := json.Unmarshal([]byte(jsonText), &line)
+			require.NoError(t, err)
+
 			ts := line.Timestamp()
 			if !test.now {
 				assert.False(t, nowish.Before(ts),
