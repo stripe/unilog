@@ -24,6 +24,9 @@ import (
 // hold the argument passed in with "-statstags"
 var statstags string
 
+// hold the argument passed with "-cleveltags"
+var cleveltags string
+
 // A Filter is a function that takes in a log line and applies
 // a transformation prior to prefixing them with a
 // timestamp and logging them.
@@ -112,7 +115,8 @@ func (u *Unilog) addFlags() {
 	flag.StringVar(&u.SentryDSN, "sentrydsn", u.SentryDSN, "Sentry DSN to send errors to")
 	flag.StringVar(&u.StatsdAddress, "statsdaddress", "127.0.0.1:8200", "Address to send statsd metrics to")
 	flag.StringVar(&clevels.AusterityFile, "austerityfile", clevels.AusterityFile, "(optional) Location of file to read austerity level from")
-	stringFlag(&statstags, "statstags", "s", "", `(optional) tags to include with all statsd metrics (e.g. "foo:bar,baz:quz")`)
+	stringFlag(&statstags, "statstags", "s", "", `(optional) tags to include with all statsd metrics except those about the box's austerity levels (format: "foo:bar,baz:quz")`)
+	stringFlag(&cleveltags, "cleveltags", "", "", `(optional) tags to include with austerity statsd metrics. This applies to the "unilog.errors.load_level" and "unilog.austerity.box" metrics.`)
 }
 
 var emailTemplate = template.Must(template.New("email").Parse(`From: {{.From}}
@@ -320,6 +324,15 @@ func (u *Unilog) handleError(action string, e error) {
 	u.b.count++
 }
 
+func setupStatsd(address, fileName, tags string) *statsd.Client {
+	statsd, _ := statsd.New(address)
+
+	if tags != "" {
+		statsd.Tags = append(statsd.Tags, strings.Split(tags, ",")...)
+	}
+	return statsd
+}
+
 // Main sets up the Unilog instance and then calls Run.
 func (u *Unilog) Main() {
 	u.fillDefaults()
@@ -365,14 +378,10 @@ func (u *Unilog) Main() {
 
 	fileName := u.target
 
-	Stats, _ = statsd.New(u.StatsdAddress)
-
+	Stats = setupStatsd(u.StatsdAddress, fileName, statstags)
 	Stats.Tags = append(Stats.Tags, fmt.Sprintf("file_name:%s", fileName))
-	if statstags != "" {
-		Stats.Tags = append(Stats.Tags, strings.Split(statstags, ",")...)
-	}
 
-	clevels.Stats = Stats
+	clevels.Stats = setupStatsd(u.StatsdAddress, fileName, cleveltags)
 
 	_ = raven.SetDSN(u.SentryDSN)
 
