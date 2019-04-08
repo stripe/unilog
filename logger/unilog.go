@@ -115,8 +115,8 @@ func (u *Unilog) addFlags() {
 	flag.StringVar(&u.SentryDSN, "sentrydsn", u.SentryDSN, "Sentry DSN to send errors to")
 	flag.StringVar(&u.StatsdAddress, "statsdaddress", "127.0.0.1:8200", "Address to send statsd metrics to")
 	flag.StringVar(&clevels.AusterityFile, "austerityfile", clevels.AusterityFile, "(optional) Location of file to read austerity level from")
-	stringFlag(&statstags, "statstags", "s", "", `(optional) tags to include with all statsd metrics except those about the box's austerity levels (e.g. "foo:bar,baz:quz")`)
-	stringFlag(&cleveltags, "cleveltags", "", "", `(optional) tags to include with austerity statsd metrics (e.g. "foo:bar,baz:quz")`)
+	stringFlag(&statstags, "statstags", "s", "", `(optional) tags to include with all statsd metrics except those about the box's austerity levels (format: "foo:bar,baz:quz")`)
+	stringFlag(&cleveltags, "cleveltags", "", "", `(optional) tags to include with austerity statsd metrics. This applies to the "unilog.errors.load_level" and "unilog.austerity.box" metrics.`)
 }
 
 var emailTemplate = template.Must(template.New("email").Parse(`From: {{.From}}
