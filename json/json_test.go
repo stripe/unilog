@@ -117,3 +117,66 @@ func TestMarshalBrokenFields(t *testing.T) {
 	assert.Contains(t, roundtrip["this_is_broken"], "[unilog json marshal error:")
 	assert.Equal(t, "hi there", roundtrip["this_works"])
 }
+
+const lineWithoutTS = `{"trace_id":"6527664022527835840","id":"6045760440938957111","parent_id":"8576604763011053087","start_timestamp":1554825181.8588214,"end_timestamp":1554825181.8588665,"duration_ns":44890,"error":false,"service":"veneur","tags":{"alerting_host_group":"localdnscritical","availability-zone":"us-west-2c","host_cluster":"northwest","host_contact":"developer-platform","host_domain":"stripe.io","host_env":"prod","host_lsbdistcodename":"xenial","host_set":"full-b","host_type":"apibox","instance-type":"m5d.12xlarge"},"indicator":false,"name":"http.gotFirstByte"}`
+const lineWithTimestamp = `{"trace_id":"6527664022527835840","id":"6045760440938957111","parent_id":"8576604763011053087","start_timestamp":1554825181.8588214,"end_timestamp":1554825181.8588665,"duration_ns":44890,"error":false,"service":"veneur","tags":{"alerting_host_group":"localdnscritical","availability-zone":"us-west-2c","host_cluster":"northwest","host_contact":"developer-platform","host_domain":"stripe.io","host_env":"prod","host_lsbdistcodename":"xenial","host_set":"full-b","host_type":"apibox","instance-type":"m5d.12xlarge"},"indicator":false,"name":"http.gotFirstByte","timestamp":"2006-01-02T15:04:05.999999999Z"}`
+const lineWithTS = `{"trace_id":"6527664022527835840","id":"6045760440938957111","parent_id":"8576604763011053087","start_timestamp":1554825181.8588214,"end_timestamp":1554825181.8588665,"duration_ns":44890,"error":false,"service":"veneur","tags":{"alerting_host_group":"localdnscritical","availability-zone":"us-west-2c","host_cluster":"northwest","host_contact":"developer-platform","host_domain":"stripe.io","host_env":"prod","host_lsbdistcodename":"xenial","host_set":"full-b","host_type":"apibox","instance-type":"m5d.12xlarge"},"indicator":false,"name":"http.gotFirstByte","ts":"2006-01-02T15:04:05.999999999Z"}`
+
+// BenchmarkLineRoundtrip roundtrips each log event through the main
+// json decoding & re-encoding machinery: parsing the JSON line,
+// extracting or generating a timestamp, serializing it to bytes
+// again.
+func BenchmarkLineRoundtrip(b *testing.B) {
+	tests := []struct{ name, line string }{
+		{"without_ts", lineWithoutTS},
+		{"with_timestamp", lineWithTimestamp},
+		{"with_ts", lineWithTS},
+	}
+	for _, elt := range tests {
+		test := elt
+		b.Run(test.name, func(b *testing.B) {
+			lineBytes := []byte(test.line)
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				var ll LogLine
+				err := json.Unmarshal(lineBytes, &ll)
+				require.NoError(b, err)
+
+				_, err = json.Marshal(ll)
+				require.NoError(b, err)
+			}
+
+		})
+	}
+}
+
+// BenchmarkLineRoundtripPlain roundtrips each log event through
+// json.Unmarshal/Marshal for a plain map[string]interface{},
+// simulating a unilog that doesn't parse/extract timestamps and
+// doesn't re-arrange the fields to be in a particular order via a
+// custom marshaller.  It is meant to provide a reference point for
+// gauging how much processing power the real json-processing
+// machinery (and timestamp synthesis) take.
+func BenchmarkLineRoundtripPlain(b *testing.B) {
+	tests := []struct{ name, line string }{
+		{"without_ts", lineWithoutTS},
+		{"with_timestamp", lineWithTimestamp},
+		{"with_ts", lineWithTS},
+	}
+	for _, elt := range tests {
+		test := elt
+		b.Run(test.name, func(b *testing.B) {
+			lineBytes := []byte(test.line)
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				var ll map[string]interface{}
+				err := json.Unmarshal(lineBytes, &ll)
+				require.NoError(b, err)
+
+				_, err = json.Marshal(ll)
+				require.NoError(b, err)
+			}
+
+		})
+	}
+}
