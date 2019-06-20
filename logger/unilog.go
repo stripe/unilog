@@ -27,6 +27,9 @@ var statstags string
 // hold the argument passed with "-cleveltags"
 var cleveltags string
 
+// hold the argument passed with "-independenttags"
+var independenttags string
+
 // A Filter is a function that takes in a log line and applies
 // a transformation prior to prefixing them with a
 // timestamp and logging them.
@@ -116,6 +119,7 @@ func (u *Unilog) addFlags() {
 	flag.StringVar(&u.StatsdAddress, "statsdaddress", "127.0.0.1:8200", "Address to send statsd metrics to")
 	flag.StringVar(&clevels.AusterityFile, "austerityfile", clevels.AusterityFile, "(optional) Location of file to read austerity level from")
 	stringFlag(&statstags, "statstags", "s", "", `(optional) tags to include with all statsd metrics except those about the box's austerity levels (format: "foo:bar,baz:quz")`)
+	flag.StringVar(&independenttags, "independenttags", "", `(optional) tags to emit an independent metric for (format: "foo:bar,baz:quz" results in metrics "metricName.foo" and "metricName.baz")`)
 	stringFlag(&cleveltags, "cleveltags", "", "", `(optional) tags to include with austerity statsd metrics. This applies to the "unilog.errors.load_level" and "unilog.austerity.box" metrics.`)
 }
 
@@ -149,6 +153,83 @@ const (
 // Stats is Unilog's statsd client.
 var Stats *statsd.Client
 
+// tagPair is a simple pair of a tag t and the full metric name n
+type tagPair struct {
+	t string
+	n string
+}
+
+// independentTags stores a list of tags to individually emit metrics on.
+// Each metric name will be formatted exactly once and cached in metricsTable.
+type independentTags struct {
+	// The tags to build metric names from
+	// Format is foo:bar where foo is the tag name
+	Tags []string
+	// Lookup table for metricName -> slice of metricName.tagName
+	metricsTable map[string][]tagPair
+}
+
+func newIndependentTags(tags []string) *independentTags {
+	return &independentTags{Tags: tags, metricsTable: make(map[string][]tagPair)}
+}
+
+func setupIndependentTags() *independentTags {
+	return newIndependentTags(strings.Split(independenttags, ","))
+}
+
+func (it *independentTags) GetTags(key string) []tagPair {
+	if it == nil {
+		return []tagPair{}
+	}
+	tags, ok := it.metricsTable[key]
+	if ok {
+		return tags
+	}
+	for _, tag := range it.Tags {
+		prefix := strings.Split(tag, ":")[0]
+		// If we don't get a token (e.g. we are passed the empty string), skip this tag
+		if len(prefix) == 0 {
+			continue
+		}
+		tags = append(tags, tagPair{t: tag, n: fmt.Sprintf("%s.%s", key, prefix)})
+	}
+	it.metricsTable[key] = tags
+	return tags
+}
+
+// tagState holds the state necessary to efficiently emit independent metrics
+var tagState *independentTags
+
+// Client is the interface for our metrics client for use in independent metric emission
+// Currently, only IndependentCount is implemented
+type Client interface {
+	Count(name string, value int64, tags []string, rate float64) error
+}
+
+// IndependentCount is a wrapper for the statsd.Count method. It will emit the normal metric
+// in addition to a metric for each tag in independenttags with all global tags and that tag
+// attached (along with tags passed as an argument to IndependentCount).
+// Metric names will be of the form metricName.tag. Will short-circuit upon encountering an error.
+func IndependentCount(client Client, name string, value int64, tags []string, rate float64) error {
+	// Preserve backwards compatability by emitting the normal metric
+	err := client.Count(name, value, tags, rate)
+	if err != nil {
+		return err
+	}
+	names := tagState.GetTags(name)
+
+	// Emit independent metrics.
+	for _, pair := range names {
+		tags = append(tags, pair.t)
+		err = client.Count(pair.n, value, tags, rate)
+		tags = tags[:len(tags)-1]
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func readlines(in io.Reader, bufsize int, shutdown chan struct{}) (<-chan string, <-chan error) {
 	linec := make(chan string, bufsize)
 	errc := make(chan error, 1)
@@ -166,7 +247,7 @@ func readlines(in io.Reader, bufsize int, shutdown chan struct{}) (<-chan string
 				s = strings.TrimRight(s, "\n")
 				linec <- s
 				if Stats != nil {
-					Stats.Count("unilog.bytes", int64(len(s)), nil, .1)
+					IndependentCount(Stats, "unilog.bytes", int64(len(s)), nil, .1)
 				}
 			}
 		}
@@ -287,7 +368,7 @@ func (u *Unilog) handleError(action string, e error) {
 
 	if Stats != nil {
 		emsg := fmt.Sprintf("err_action:%s", action)
-		Stats.Count("unilog.errors_total", 1, []string{emsg}, 1)
+		IndependentCount(Stats, "unilog.errors_total", 1, []string{emsg}, 1)
 	}
 
 	if u.b.count == 0 && u.SentryDSN != "" {
@@ -374,8 +455,6 @@ func (u *Unilog) Main() {
 	u.target = flag.Arg(0)
 	u.reopen()
 
-	u.lines, u.errs = readlines(os.Stdin, u.BufferLines, u.shutdown)
-
 	fileName := u.target
 
 	Stats = setupStatsd(u.StatsdAddress, fileName, statstags)
@@ -383,7 +462,11 @@ func (u *Unilog) Main() {
 
 	clevels.Stats = setupStatsd(u.StatsdAddress, fileName, cleveltags)
 
+	tagState = setupIndependentTags()
+
 	_ = raven.SetDSN(u.SentryDSN)
+
+	u.lines, u.errs = readlines(os.Stdin, u.BufferLines, u.shutdown)
 
 	u.run()
 }
