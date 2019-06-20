@@ -177,23 +177,24 @@ func setupIndependentTags() *independentTags {
 	return newIndependentTags(strings.Split(independenttags, ","))
 }
 
-func (it *independentTags) GetTags(key string) []tagPair {
+func (it *independentTags) GetTags(metricName string) []tagPair {
 	if it == nil {
 		return []tagPair{}
 	}
-	tags, ok := it.metricsTable[key]
+	tags, ok := it.metricsTable[metricName]
 	if ok {
 		return tags
 	}
+	tags = make([]tagPair, 0, len(it.Tags))
 	for _, tag := range it.Tags {
 		prefix := strings.Split(tag, ":")[0]
 		// If we don't get a token (e.g. we are passed the empty string), skip this tag
 		if len(prefix) == 0 {
 			continue
 		}
-		tags = append(tags, tagPair{t: tag, n: fmt.Sprintf("%s.%s", key, prefix)})
+		tags = append(tags, tagPair{t: tag, n: fmt.Sprintf("%s.%s", metricName, prefix)})
 	}
-	it.metricsTable[key] = tags
+	it.metricsTable[metricName] = tags
 	return tags
 }
 
@@ -216,13 +217,11 @@ func IndependentCount(client Client, name string, value int64, tags []string, ra
 	if err != nil {
 		return err
 	}
-	names := tagState.GetTags(name)
+	pairs := tagState.GetTags(name)
 
 	// Emit independent metrics.
-	for _, pair := range names {
-		tags = append(tags, pair.t)
-		err = client.Count(pair.n, value, tags, rate)
-		tags = tags[:len(tags)-1]
+	for _, pair := range pairs {
+		err = client.Count(pair.n, value, append(tags, pair.t), rate)
 		if err != nil {
 			return err
 		}
@@ -457,12 +456,12 @@ func (u *Unilog) Main() {
 
 	fileName := u.target
 
+	tagState = setupIndependentTags()
+
 	Stats = setupStatsd(u.StatsdAddress, fileName, statstags)
 	Stats.Tags = append(Stats.Tags, fmt.Sprintf("file_name:%s", fileName))
 
 	clevels.Stats = setupStatsd(u.StatsdAddress, fileName, cleveltags)
-
-	tagState = setupIndependentTags()
 
 	_ = raven.SetDSN(u.SentryDSN)
 
