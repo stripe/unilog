@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"bytes"
 	"os"
 	"strings"
 	"syscall"
@@ -150,4 +151,74 @@ func TestSigQuitNoOp(t *testing.T) {
 	if !u.tick() {
 		t.Error("Tick returned false.")
 	}
+}
+
+type MockClient struct {
+	Counts map[string]int64
+}
+
+func (mc *MockClient) Count(name string, value int64, tags []string, rate float64) error {
+	var buffer bytes.Buffer
+	for _, tag := range tags {
+		buffer.WriteString("[")
+		buffer.WriteString(tag)
+		buffer.WriteString("]")
+	}
+	buffer.WriteString(name)
+	mc.Counts[buffer.String()] += value
+	return nil
+}
+
+func TestNoTags(t *testing.T) {
+	client := &MockClient{Counts: make(map[string]int64)}
+	for i := 0; i < 100; i++ {
+		IndependentCount(client, "metric", 10, nil, 1)
+	}
+	if client.Counts["metric"] != 1000 {
+		t.Errorf("Count was %d, not %d", client.Counts["metric"], 1000)
+	}
+}
+
+func TestWithGlobalTags(t *testing.T) {
+	client := &MockClient{Counts: make(map[string]int64)}
+	for i := 0; i < 100; i++ {
+		IndependentCount(client, "metric", 10, []string{"foo:bar"}, 1)
+		IndependentCount(client, "metric", 5, []string{"baz:qaz", "veneurglobalonly:true"}, 1)
+	}
+	var tests = map[string]int64{
+		"[foo:bar]metric":                        1000,
+		"[baz:qaz][veneurglobalonly:true]metric": 500,
+	}
+	for key, value := range tests {
+		if client.Counts[key] != value {
+			t.Errorf("Count for %s was %d, not %d", key, client.Counts[key], value)
+		}
+	}
+}
+
+func TestWithIndependentTags(t *testing.T) {
+	// Save and set tagState
+	tmp := tagState
+	tagState = newIndependentTags([]string{"veneurglobalonly:true", "owner:observability"})
+
+	client := &MockClient{Counts: make(map[string]int64)}
+	for i := 0; i < 100; i++ {
+		IndependentCount(client, "metric", 10, nil, 1)
+		IndependentCount(client, "metric", 5, []string{"baz:qaz"}, 1)
+	}
+	var tests = map[string]int64{
+		"metric": 1000,
+		"[veneurglobalonly:true]metric.veneurglobalonly":          1000,
+		"[owner:observability]metric.owner":                       1000,
+		"[baz:qaz]metric":                                         500,
+		"[baz:qaz][veneurglobalonly:true]metric.veneurglobalonly": 500,
+		"[baz:qaz][owner:observability]metric.owner":              500,
+	}
+	for key, value := range tests {
+		if client.Counts[key] != value {
+			t.Errorf("Count for %s was %d, not %d", key, client.Counts[key], value)
+		}
+	}
+	// Restore tagState
+	tagState = tmp
 }
