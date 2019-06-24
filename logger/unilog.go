@@ -144,7 +144,7 @@ const (
 	// Version is the Unilog version. Reported in emails and in
 	// response to --version on the command line. Can be overriden
 	// by the Version field in a Unilog object.
-	Version = "0.3"
+	Version = "0.4"
 	// DefaultBuffer is the default size (in lines) of the
 	// in-process line buffer
 	DefaultBuffer = 1 << 12
@@ -459,7 +459,6 @@ func (u *Unilog) Main() {
 	tagState = setupIndependentTags()
 
 	Stats = setupStatsd(u.StatsdAddress, fileName, statstags)
-	Stats.Tags = append(Stats.Tags, fmt.Sprintf("file_name:%s", fileName))
 
 	clevels.Stats = setupStatsd(u.StatsdAddress, fileName, cleveltags)
 
