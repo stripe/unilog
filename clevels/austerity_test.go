@@ -102,6 +102,12 @@ func TestCriticality(t *testing.T) {
 			level: CriticalPlus,
 		},
 		{
+			name: "CANONICAL-OTHER-CRITICAL-LINE",
+			// actual CANONICAL-API-LINE, with explicit merchant-identifying tokens removed
+			line:  `[2016-11-10 19:18:05.844100] [98381|f1.northwest-1.apiori.com/EzBDuA4iNq-2631925524 85137cc252d87354>e9b8c49860f01f15] CANONICAL-OTHER-CRITICAL-LINE: api_method=AccountRetrieveMethod content_type="application/x-www-form-urlencoded" created=1478805073.5253563 http_method=GET ip="54.xxx.xxx.xxx" path="/v1/accounts/acct_xxxxxxxxxxxxxxxx" user_agent="Stripe/v1 RubyBindings/1.31.0" request_id=req_xxxxxxxxxxxxxx response_stripe_version="2016-03-07" status=200 merchant=acct_xxxxxxxxxxxxx`,
+			level: CriticalPlus,
+		},
+		{
 			name: "CANONICAL-API-LINE",
 			// actual CANONICAL-API-LINE, with explicit merchant-identifying tokens removed
 			// this should be criticalplus, despite clevel=sheddable being set

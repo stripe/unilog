@@ -93,7 +93,7 @@ func LoadLevel() (AusterityLevel, error) {
 	return level, err
 }
 
-var canonicalRegex = regexp.MustCompile(`(?i)CANONICAL-\w+?-LINE`)
+var canonicalRegex = regexp.MustCompile(`(?i)CANONICAL-[-\w]+?-LINE`)
 var cLevelRegex = regexp.MustCompile(`\[clevel: (\w*?)\]`)
 var cLevelChalkRegex = regexp.MustCompile(`\sclevel=(\w+?)\b`)
 
