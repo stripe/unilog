@@ -8,7 +8,7 @@ import (
 func main() {
 	u := &logger.Unilog{
 		Filters: []logger.Filter{
-			logger.Filter(filters.AusterityFilter),
+			logger.Filter(filters.AusterityFilter{}),
 		},
 	}
 	u.Main()
