@@ -30,7 +30,12 @@ func TestTimePrefixJSON(t *testing.T) {
 }
 
 func between(t *testing.T, check string, format string, bottom, high time.Time) {
-	t.Helper()
+	if h, ok := interface{}(t).(interface {
+		Helper()
+	}); ok {
+		h.Helper()
+	}
+
 	c, err := time.Parse(format, check)
 
 	if err != nil {
