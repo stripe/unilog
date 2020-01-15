@@ -33,11 +33,10 @@ var cleveltags string
 // hold the argument passed with "-independenttags"
 var independenttags string
 
-// Filter takes in a log line and applies a transformation prior to
-// prefixing them with a timestamp and logging them. Since Unilog can
-// operate on JSON or on string content, there are two methods that a
-// filter must implement (so unilog can cut down on time spent parsing
-// the log line).
+// Filter takes in a log line and applies a transformation prior to logging
+// them. Since Unilog can operate on JSON or on string content, there are two
+// methods that a filter must implement (so unilog can cut down on time spent
+// parsing the log line).
 type Filter interface {
 	FilterLine(line string) string
 	FilterJSON(line *json.LogLine)
@@ -301,7 +300,7 @@ func (u *Unilog) format(line string) string {
 			line = filter.FilterLine(line)
 		}
 	}
-	return fmt.Sprintf("[%s] %s\n", time.Now().Format("2006-01-02 15:04:05.000000"), line)
+	return line + "\n"
 }
 
 func (u *Unilog) logLine(line string) {

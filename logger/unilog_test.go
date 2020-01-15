@@ -89,15 +89,6 @@ func TestFilterFunction(t *testing.T) {
 	}
 
 	result := u.format(input)
-
-	i := strings.Index(result, "]")
-	if i == -1 {
-		t.Errorf("Expected timestamp but found none")
-	}
-
-	// Remove the entire timestamp and the leading space to avoid
-	// having to match the timestamp part of the string in the test
-	result = result[i+2:]
 	if result != expected {
 		t.Errorf("expected %q, found %q", expected, result)
 	}
