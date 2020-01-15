@@ -19,6 +19,9 @@ func TestTimePrefixLine(t *testing.T) {
 
 	between(t, str[1:27], defaultFormat, low, time.Now())
 	between(t, str2[1:29], time.UnixDate, low, time.Now())
+
+	f.Omit = true
+	assert.Equal(t, "", f.FilterLine(""), "Empty input should have empty output when f.Omit == true, got %q", f.FilterLine(""))
 }
 
 func TestTimePrefixJSON(t *testing.T) {
