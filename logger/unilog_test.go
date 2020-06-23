@@ -2,12 +2,15 @@ package logger
 
 import (
 	"bytes"
+	encjson "encoding/json"
 	"fmt"
 	"os"
 	"strings"
 	"syscall"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stripe/unilog/filters"
 	"github.com/stripe/unilog/json"
 )
 
@@ -255,4 +258,52 @@ func TestSentrySuccess(t *testing.T) {
 
 	u := &Unilog{SentryDSN: "https://123:456@foo/789"}
 	u.setupSentry()
+}
+
+type mockFile struct {
+	buf *bytes.Buffer
+}
+
+func (m mockFile) Write(p []byte) (int, error) {
+	return m.buf.Write(p)
+}
+func (mockFile) Close() error {
+	return nil
+}
+
+func getLogLine(u *Unilog, line string) string {
+	var buf bytes.Buffer
+	u.file = mockFile{buf: &buf}
+
+	u.logLine(line)
+	return buf.String()
+}
+
+func getLogJSON(u *Unilog, line string) string {
+	var buf bytes.Buffer
+	u.file = mockFile{buf: &buf}
+	u.jsonEncoder = encjson.NewEncoder(u.file)
+
+	u.logJSON(line)
+	return buf.String()
+}
+
+func TestLogLine(t *testing.T) {
+	out := getLogLine(&Unilog{}, "hi")
+	assert.Equal(t, "hi\n", out)
+
+	out = getLogLine(&Unilog{
+		Filters: []Filter{
+			filters.TimePrefixFilter{Format: "foo"},
+		},
+	}, "hi")
+	assert.Equal(t, "[foo] hi\n", out)
+}
+
+func TestLogJSON(t *testing.T) {
+	out := getLogJSON(&Unilog{}, "hi")
+	assert.Equal(t, "hi\n", out)
+
+	out = getLogJSON(&Unilog{}, `{"message":"hi"}`)
+	assert.Regexp(t, `\{"timestamp":[\d\.]+,"message":"hi"}\n`, out)
 }
