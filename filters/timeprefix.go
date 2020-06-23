@@ -19,7 +19,7 @@ type TimePrefixFilter struct {
 
 // FilterLine prepends the current time, in square brackets with a separating
 // space, to the provided log line.
-func (f *TimePrefixFilter) FilterLine(line string) string {
+func (f TimePrefixFilter) FilterLine(line string) string {
 	if f.Omit {
 		return line
 	}
@@ -27,7 +27,7 @@ func (f *TimePrefixFilter) FilterLine(line string) string {
 }
 
 // FilterJSON is a no-op - TimePrefixFilter does nothing on JSON logs (for now!).
-func (f *TimePrefixFilter) FilterJSON(line *json.LogLine) {}
+func (f TimePrefixFilter) FilterJSON(line *json.LogLine) {}
 
 func (f *TimePrefixFilter) getTimeFormat() string {
 	if f.Format != "" {
