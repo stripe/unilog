@@ -339,7 +339,7 @@ func (u *Unilog) logJSON(jsonLine string) {
 	if err != nil {
 		// It won't parse, treat it as yolo text:
 		u.logLine(jsonLine)
-
+		return
 	}
 
 	if u.Verbose {
