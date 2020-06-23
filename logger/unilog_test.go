@@ -2,6 +2,7 @@ package logger
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"strings"
 	"syscall"
@@ -228,4 +229,30 @@ func TestWithIndependentTags(t *testing.T) {
 	}
 	// Restore tagState
 	tagState = tmp
+}
+
+func TestSentryPanic(t *testing.T) {
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Errorf("Expected panic, but got none")
+		} else if !strings.HasPrefix(fmt.Sprintf("%v", r), "Invalid DSN:") {
+			t.Errorf("Expected `Invalid DSN: ...`, but got: %s", r)
+		}
+	}()
+
+	u := &Unilog{SentryDSN: "foo"}
+	u.setupSentry()
+}
+
+func TestSentrySuccess(t *testing.T) {
+	defer func() {
+		r := recover()
+		if r != nil {
+			t.Errorf("Expected no panic, but got: %s", r)
+		}
+	}()
+
+	u := &Unilog{SentryDSN: "https://123:456@foo/789"}
+	u.setupSentry()
 }

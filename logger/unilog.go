@@ -468,6 +468,19 @@ func setupStatsd(address, fileName, tags string) *statsd.Client {
 	return statsd
 }
 
+func (u *Unilog) setupSentry() {
+	if u.SentryDSN != "" {
+		err := sentry.Init(sentry.ClientOptions{
+			Dsn: u.SentryDSN,
+		})
+
+		if err != nil {
+			// 2020-06-23, sentry-go 0.6.1: failure to parse the DSN is the only error case
+			panic(fmt.Sprintf("Invalid DSN: %s", u.SentryDSN))
+		}
+	}
+}
+
 // Main sets up the Unilog instance and then calls Run.
 func (u *Unilog) Main() {
 	u.fillDefaults()
@@ -517,13 +530,8 @@ func (u *Unilog) Main() {
 
 	clevels.Stats = setupStatsd(u.StatsdAddress, fileName, cleveltags)
 
-	err := sentry.Init(sentry.ClientOptions{
-		Dsn: u.SentryDSN,
-	})
+	u.setupSentry()
 
-	if err != nil {
-		panic(err)
-	}
 	u.lines, u.errs = readlines(os.Stdin, u.BufferLines, u.shutdown)
 
 	u.run()
