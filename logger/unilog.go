@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
-	"github.com/getsentry/raven-go"
+	"github.com/getsentry/sentry-go"
 
 	encjson "encoding/json"
 
@@ -155,10 +155,16 @@ const (
 	// Version is the Unilog version. Reported in emails and in
 	// response to --version on the command line. Can be overriden
 	// by the Version field in a Unilog object.
-	Version = "0.4"
+	Version = "1.0.0"
 	// DefaultBuffer is the default size (in lines) of the
 	// in-process line buffer
 	DefaultBuffer = 1 << 12
+)
+
+var (
+	// Commit vars can be set by passing e.g. -ldflags "$(TZ=UTC git --no-pager show --quiet --abbrev=12 --date='format-local:%Y-%m-%dT%H:%M:%SZ' --format="-X github.com/stripe/unilog/logger.commitDate=\"%cd\" -X github.com/stripe/unilog/logger.commitHash=%h")"
+	commitHash = ""
+	commitDate = ""
 )
 
 // Stats is Unilog's statsd client.
@@ -339,6 +345,7 @@ func (u *Unilog) logJSON(jsonLine string) {
 	if err != nil {
 		// It won't parse, treat it as yolo text:
 		u.logLine(jsonLine)
+		return
 	}
 
 	if u.Verbose {
@@ -423,16 +430,18 @@ func (u *Unilog) handleError(action string, e error) {
 	}
 
 	if u.b.count == 0 && u.SentryDSN != "" {
-		hostname, _ := os.Hostname()
-		keys := map[string]string{
-			"Hostname": hostname,
-			"Action":   action,
-			"Name":     u.Name,
-			"Target":   u.target,
-			"Error":    e.Error(),
-			"Version":  Version,
-		}
-		raven.CaptureError(e, keys)
+		sentry.WithScope(func(scope *sentry.Scope) {
+			hostname, _ := os.Hostname()
+			scope.SetTags(map[string]string{
+				"Hostname": hostname,
+				"Action":   action,
+				"Name":     u.Name,
+				"Target":   u.target,
+				"Error":    e.Error(),
+				"Version":  Version,
+			})
+			sentry.CaptureException(e)
+		})
 	}
 
 	if u.b.count == 0 && u.MailFrom != "" && u.MailTo != "" {
@@ -465,6 +474,19 @@ func setupStatsd(address, fileName, tags string) *statsd.Client {
 	return statsd
 }
 
+func (u *Unilog) setupSentry() {
+	if u.SentryDSN != "" {
+		err := sentry.Init(sentry.ClientOptions{
+			Dsn: u.SentryDSN,
+		})
+
+		if err != nil {
+			// 2020-06-23, sentry-go 0.6.1: failure to parse the DSN is the only error case
+			panic(fmt.Sprintf("Invalid DSN: %s", u.SentryDSN))
+		}
+	}
+}
+
 // Main sets up the Unilog instance and then calls Run.
 func (u *Unilog) Main() {
 	u.fillDefaults()
@@ -481,7 +503,7 @@ func (u *Unilog) Main() {
 	flag.Parse(true)
 
 	if flagVersion {
-		fmt.Printf("This is unilog v%s\n", Version)
+		fmt.Printf("This is unilog v%s %s %s\n", Version, commitHash, commitDate)
 		return
 	}
 	args := flag.Args()
@@ -514,7 +536,7 @@ func (u *Unilog) Main() {
 
 	clevels.Stats = setupStatsd(u.StatsdAddress, fileName, cleveltags)
 
-	_ = raven.SetDSN(u.SentryDSN)
+	u.setupSentry()
 
 	u.lines, u.errs = readlines(os.Stdin, u.BufferLines, u.shutdown)
 

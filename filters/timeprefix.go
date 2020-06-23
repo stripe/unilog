@@ -37,6 +37,7 @@ func (f *TimePrefixFilter) getTimeFormat() string {
 	return defaultFormat
 }
 
+// AddFlags adds time-prefix related flags to the CLI options
 func (f *TimePrefixFilter) AddFlags() {
 	flag.BoolVar(&f.Omit, "omit-timestamps", false, "Do not prepend timestamps to each line before flushing.")
 }

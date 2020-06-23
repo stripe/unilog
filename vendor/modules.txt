@@ -1,0 +1,19 @@
+# github.com/DataDog/datadog-go v0.0.0-20160822161430-909c02b65dd8
+## explicit
+github.com/DataDog/datadog-go/statsd
+# github.com/davecgh/go-spew v1.1.1
+github.com/davecgh/go-spew/spew
+# github.com/getsentry/sentry-go v0.6.1
+## explicit
+github.com/getsentry/sentry-go
+# github.com/pmezard/go-difflib v1.0.0
+github.com/pmezard/go-difflib/difflib
+# github.com/stretchr/testify v1.4.0
+## explicit
+github.com/stretchr/testify/assert
+github.com/stretchr/testify/require
+# gopkg.in/yaml.v2 v2.2.4
+gopkg.in/yaml.v2
+# launchpad.net/gnuflag v0.0.0-20150127164241-000000000014
+## explicit
+launchpad.net/gnuflag
