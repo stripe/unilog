@@ -155,10 +155,16 @@ const (
 	// Version is the Unilog version. Reported in emails and in
 	// response to --version on the command line. Can be overriden
 	// by the Version field in a Unilog object.
-	Version = "0.4"
+	Version = "1.0.0"
 	// DefaultBuffer is the default size (in lines) of the
 	// in-process line buffer
 	DefaultBuffer = 1 << 12
+)
+
+var (
+	// Commit vars can be set by passing e.g. -ldflags "$(TZ=UTC git --no-pager show --quiet --abbrev=12 --date='format-local:%Y-%m-%dT%H:%M:%SZ' --format="-X github.com/stripe/unilog/logger.commitDate=\"%cd\" -X github.com/stripe/unilog/logger.commitHash=%h")"
+	commitHash = ""
+	commitDate = ""
 )
 
 // Stats is Unilog's statsd client.
@@ -497,7 +503,7 @@ func (u *Unilog) Main() {
 	flag.Parse(true)
 
 	if flagVersion {
-		fmt.Printf("This is unilog v%s\n", Version)
+		fmt.Printf("This is unilog v%s %s %s\n", Version, commitHash, commitDate)
 		return
 	}
 	args := flag.Args()
