@@ -294,7 +294,7 @@ func TestLogLine(t *testing.T) {
 
 	out = getLogLine(&Unilog{
 		Filters: []Filter{
-			filters.TimePrefixFilter{Format: "foo"},
+			&filters.TimePrefixFilter{Format: "foo"},
 		},
 	}, "hi")
 	assert.Equal(t, "[foo] hi\n", out)

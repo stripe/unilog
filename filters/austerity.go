@@ -33,7 +33,7 @@ func AusteritySetup(testing bool) {
 }
 
 // FilterLine applies shedding to a text event
-func (a AusterityFilter) FilterLine(line string) string {
+func (a *AusterityFilter) FilterLine(line string) string {
 	AusteritySetup(false)
 	if ShouldShed(clevels.Criticality(line)) {
 		return "(shedded)"
@@ -42,7 +42,7 @@ func (a AusterityFilter) FilterLine(line string) string {
 }
 
 // FilterJSON applies shedding to a JSON event
-func (a AusterityFilter) FilterJSON(line *json.LogLine) {
+func (a *AusterityFilter) FilterJSON(line *json.LogLine) {
 	AusteritySetup(false)
 	if ShouldShed(clevels.JSONCriticality(*line)) {
 		// clear the line:
