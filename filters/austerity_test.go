@@ -11,11 +11,54 @@ import (
 	"github.com/stripe/unilog/json"
 )
 
+func TestCalculateSamplingRate(t *testing.T) {
+	type CalculateSamplingLevel struct {
+		Name        string
+		Austerity   clevels.AusterityLevel
+		Criticality clevels.AusterityLevel
+		Expected    float64
+	}
+
+	cases := []CalculateSamplingLevel{
+		{
+			Name:        "log level higher than austerity",
+			Austerity:   clevels.Sheddable,
+			Criticality: clevels.SheddablePlus,
+			Expected:    1.0,
+		},
+		{
+			Name:        "log level one lower than austerity",
+			Austerity:   clevels.Critical,
+			Criticality: clevels.SheddablePlus,
+			Expected:    0.1,
+		},
+		{
+			Name:        "log level two lower than austerity",
+			Austerity:   clevels.Critical,
+			Criticality: clevels.Sheddable,
+			Expected:    0.01,
+		},
+		{
+			Name:        "log level three lower than austerity",
+			Austerity:   clevels.CriticalPlus,
+			Criticality: clevels.Sheddable,
+			Expected:    0.001,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			samplingRate := samplingRate(tc.Austerity, tc.Criticality)
+			assert.Equal(t, tc.Expected, samplingRate)
+		})
+	}
+}
+
 func TestAusterityFilter(t *testing.T) {
 	// Make sure SendSystemAusterityLevel is called before we override
 	// the underlying channel below
 	a := AusterityFilter{}
-	a.Setup(true)
+	AusteritySetup(true)
 
 	clevels.SystemAusterityLevel = make(chan clevels.AusterityLevel)
 
@@ -58,7 +101,7 @@ func TestAusterityJSON(t *testing.T) {
 	// Make sure SendSystemAusterityLevel is called before we override
 	// the underlying channel below
 	a := AusterityFilter{}
-	a.Setup(true)
+	AusteritySetup(true)
 	clevels.SystemAusterityLevel = make(chan clevels.AusterityLevel)
 	kill := make(chan struct{})
 

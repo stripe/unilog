@@ -19,11 +19,11 @@ var startSystemAusterityLevel sync.Once
 // Shedding log lines retains their time stamps.
 type AusterityFilter struct{}
 
-// Setup starts the parser for the system austerity level. It is
+// AusteritySetup starts the parser for the system austerity level. It is
 // exported so that tests can call it with testing=true in test setup,
 // which will disable sending the austerity level (and also appease
 // the race detector).
-func (a AusterityFilter) Setup(testing bool) {
+func AusteritySetup(testing bool) {
 	// Start austerity level loop sender in goroutine just once
 	startSystemAusterityLevel.Do(func() {
 		if !testing {
@@ -32,17 +32,19 @@ func (a AusterityFilter) Setup(testing bool) {
 	})
 }
 
+// FilterLine applies shedding to a text event
 func (a AusterityFilter) FilterLine(line string) string {
-	a.Setup(false)
-	if shouldShed(clevels.Criticality(line)) {
+	AusteritySetup(false)
+	if ShouldShed(clevels.Criticality(line)) {
 		return "(shedded)"
 	}
 	return line
 }
 
+// FilterJSON applies shedding to a JSON event
 func (a AusterityFilter) FilterJSON(line *json.LogLine) {
-	a.Setup(false)
-	if shouldShed(clevels.JSONCriticality(*line)) {
+	AusteritySetup(false)
+	if ShouldShed(clevels.JSONCriticality(*line)) {
 		// clear the line:
 		newLine := map[string]interface{}{}
 		if ts, ok := (*line)["ts"]; ok {
@@ -53,7 +55,9 @@ func (a AusterityFilter) FilterJSON(line *json.LogLine) {
 	}
 }
 
-func shouldShed(criticalityLevel clevels.AusterityLevel) bool {
+// ShouldShed returns true if the given criticalityLevel indicates a log
+// should be shed, according to the system austerity level
+func ShouldShed(criticalityLevel clevels.AusterityLevel) bool {
 	austerityLevel := <-clevels.SystemAusterityLevel
 	if criticalityLevel >= austerityLevel {
 		return false
