@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
-	"github.com/getsentry/raven-go"
+	"github.com/getsentry/sentry-go"
 
 	encjson "encoding/json"
 
@@ -339,6 +339,7 @@ func (u *Unilog) logJSON(jsonLine string) {
 	if err != nil {
 		// It won't parse, treat it as yolo text:
 		u.logLine(jsonLine)
+
 	}
 
 	if u.Verbose {
@@ -423,16 +424,18 @@ func (u *Unilog) handleError(action string, e error) {
 	}
 
 	if u.b.count == 0 && u.SentryDSN != "" {
-		hostname, _ := os.Hostname()
-		keys := map[string]string{
-			"Hostname": hostname,
-			"Action":   action,
-			"Name":     u.Name,
-			"Target":   u.target,
-			"Error":    e.Error(),
-			"Version":  Version,
-		}
-		raven.CaptureError(e, keys)
+		sentry.WithScope(func(scope *sentry.Scope) {
+			hostname, _ := os.Hostname()
+			scope.SetTags(map[string]string{
+				"Hostname": hostname,
+				"Action":   action,
+				"Name":     u.Name,
+				"Target":   u.target,
+				"Error":    e.Error(),
+				"Version":  Version,
+			})
+			sentry.CaptureException(e)
+		})
 	}
 
 	if u.b.count == 0 && u.MailFrom != "" && u.MailTo != "" {
@@ -514,8 +517,13 @@ func (u *Unilog) Main() {
 
 	clevels.Stats = setupStatsd(u.StatsdAddress, fileName, cleveltags)
 
-	_ = raven.SetDSN(u.SentryDSN)
+	err := sentry.Init(sentry.ClientOptions{
+		Dsn: u.SentryDSN,
+	})
 
+	if err != nil {
+		panic(err)
+	}
 	u.lines, u.errs = readlines(os.Stdin, u.BufferLines, u.shutdown)
 
 	u.run()
