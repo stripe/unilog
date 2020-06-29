@@ -167,6 +167,16 @@ var (
 	commitDate = ""
 )
 
+// SetCommitHash sets the commitHash contents, so dependents can inject build info
+func SetCommitHash(hash string) {
+	commitHash = hash
+}
+
+// SetCommitDate sets the commitDate contents, so dependents can inject build info
+func SetCommitDate(date time.Time) {
+	commitDate = date.Format("2006-01-02T15:04:05Z")
+}
+
 // Stats is Unilog's statsd client.
 var Stats *statsd.Client
 
