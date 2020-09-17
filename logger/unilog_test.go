@@ -234,6 +234,15 @@ func TestWithIndependentTags(t *testing.T) {
 	tagState = tmp
 }
 
+func TestIndependentTagRace(t *testing.T) {
+	tagState = newIndependentTags([]string{"foo:bar"})
+	for i := 0; i < 100; i++ {
+		go func(num int) {
+			tagState.GetTags(fmt.Sprintf("%d", num))
+		}(i)
+	}
+}
+
 func TestSentryPanic(t *testing.T) {
 	defer func() {
 		r := recover()

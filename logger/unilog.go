@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"text/template"
 	"time"
@@ -189,6 +190,7 @@ type tagPair struct {
 // independentTags stores a list of tags to individually emit metrics on.
 // Each metric name will be formatted exactly once and cached in metricsTable.
 type independentTags struct {
+	sync.RWMutex
 	// The tags to build metric names from
 	// Format is foo:bar where foo is the tag name
 	Tags []string
@@ -208,6 +210,8 @@ func (it *independentTags) GetTags(metricName string) []tagPair {
 	if it == nil {
 		return []tagPair{}
 	}
+	it.Lock()
+	defer it.Unlock()
 	tags, ok := it.metricsTable[metricName]
 	if ok {
 		return tags
