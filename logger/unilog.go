@@ -156,7 +156,7 @@ const (
 	// Version is the Unilog version. Reported in emails and in
 	// response to --version on the command line. Can be overriden
 	// by the Version field in a Unilog object.
-	Version = "1.0.1"
+	Version = "1.0.2"
 	// DefaultBuffer is the default size (in lines) of the
 	// in-process line buffer
 	DefaultBuffer = 1 << 12
