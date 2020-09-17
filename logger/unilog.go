@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"text/template"
 	"time"
@@ -155,7 +156,7 @@ const (
 	// Version is the Unilog version. Reported in emails and in
 	// response to --version on the command line. Can be overriden
 	// by the Version field in a Unilog object.
-	Version = "1.0.1"
+	Version = "1.0.2"
 	// DefaultBuffer is the default size (in lines) of the
 	// in-process line buffer
 	DefaultBuffer = 1 << 12
@@ -189,6 +190,7 @@ type tagPair struct {
 // independentTags stores a list of tags to individually emit metrics on.
 // Each metric name will be formatted exactly once and cached in metricsTable.
 type independentTags struct {
+	m sync.RWMutex
 	// The tags to build metric names from
 	// Format is foo:bar where foo is the tag name
 	Tags []string
@@ -208,7 +210,9 @@ func (it *independentTags) GetTags(metricName string) []tagPair {
 	if it == nil {
 		return []tagPair{}
 	}
+	it.m.RLock()
 	tags, ok := it.metricsTable[metricName]
+	it.m.RUnlock()
 	if ok {
 		return tags
 	}
@@ -221,7 +225,9 @@ func (it *independentTags) GetTags(metricName string) []tagPair {
 		}
 		tags = append(tags, tagPair{t: tag, n: fmt.Sprintf("%s.%s", metricName, prefix)})
 	}
+	it.m.Lock()
 	it.metricsTable[metricName] = tags
+	it.m.Unlock()
 	return tags
 }
 
