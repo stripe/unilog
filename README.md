@@ -1,4 +1,4 @@
-## unilog -- a logger process for daemontols [![Build Status](https://travis-ci.org/stripe/unilog.svg?branch=master)](https://travis-ci.org/stripe/unilog)
+## unilog -- a logger process for daemontools [![Build Status](https://travis-ci.org/stripe/unilog.svg?branch=master)](https://travis-ci.org/stripe/unilog)
 
 unilog is a tool for use with djb's [daemontools][daemontools]
 process-monitor.
