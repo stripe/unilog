@@ -1,5 +1,0 @@
-language: go
-go:
-  - 1.14
-  - tip
-gobuild_args: -ldflags "$(TZ=UTC git --no-pager show --quiet --abbrev=12 --date='format-local:%Y-%m-%dT%H:%M:%SZ' --format="-X github.com/stripe/unilog/logger.commitDate=%cd -X github.com/stripe/unilog/logger.commitHash=%h")"
